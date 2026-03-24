@@ -2,7 +2,10 @@ import { UserLayout } from "@/components/layout/UserLayout";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { BlockchainBadge } from "@/components/ui/BlockchainBadge";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   Shield,
   Calendar,
@@ -12,48 +15,160 @@ import {
   AlertTriangle,
   ChevronRight,
   Download,
+  Plus,
+  RefreshCw,
 } from "lucide-react";
 
-const policies = [
-  {
-    id: "POL-AUTO-2024",
-    name: "Comprehensive Auto Insurance",
-    type: "Auto",
-    coverage: "$50,000",
-    premium: "$125/month",
-    startDate: "Jan 1, 2024",
-    endDate: "Dec 31, 2024",
-    status: "active",
-    features: ["Collision Coverage", "Liability Protection", "Medical Payments", "Roadside Assistance"],
-  },
-  {
-    id: "POL-HEALTH-2024",
-    name: "Premium Health Coverage",
-    type: "Health",
-    coverage: "$100,000",
-    premium: "$350/month",
-    startDate: "Mar 1, 2024",
-    endDate: "Feb 28, 2025",
-    status: "active",
-    features: ["Hospital Care", "Prescription Drugs", "Mental Health", "Preventive Care"],
-  },
-  {
-    id: "POL-PROP-2024",
-    name: "Home & Property Insurance",
-    type: "Property",
-    coverage: "$250,000",
-    premium: "$200/month",
-    startDate: "Jun 15, 2024",
-    endDate: "Jun 14, 2025",
-    status: "active",
-    features: ["Dwelling Coverage", "Personal Property", "Liability Protection", "Natural Disasters"],
-  },
-];
+import { useState, useEffect } from "react";
+import { getContractReadOnly, getSignerAddress, getContractWithSigner, hasWallet } from "@/lib/ethereum";
+import { toast } from "sonner";
 
 export default function UserPolicies() {
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBuying, setIsBuying] = useState(false);
+  const [formData, setFormData] = useState({ premium: "", coverage: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchMyPolicies = async () => {
+    setIsLoading(true);
+    try {
+      const address = await getSignerAddress();
+      const contract = getContractReadOnly();
+      const count = await contract.policyCount();
+      const fetched = [];
+      // In InsuranceClaimSystem, ids start at 1
+      for (let i = 1; i <= Number(count); i++) {
+        const policy = await contract.policies(i);
+        // policy.holder is the owner
+        if (policy.holder.toLowerCase() === address.toLowerCase()) {
+          fetched.push({
+            id: policy.policyId.toString(),
+            name: `Smart Policy #${policy.policyId.toString()}`,
+            type: "Custom",
+            coverage: `${policy.coverage.toString()} wei`,
+            premium: `${policy.premium.toString()} wei`,
+            startDate: "On-Chain", // Timestamp isn't saved in the new contract
+            endDate: "N/A",
+            status: policy.active ? "active" : "inactive",
+            features: ["Blockchain Verified", "Transparent"],
+          });
+        }
+      }
+      setPolicies(fetched);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to fetch policies: ${err.message || "Unknown Error"}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMyPolicies();
+  }, []);
+
+  const handlePurchase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.premium || !formData.coverage) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const contract = await getContractWithSigner();
+      const tx = await contract.createPolicy(BigInt(formData.premium), BigInt(formData.coverage));
+      toast.info("Transaction submitted. Waiting for confirmation...");
+      await tx.wait();
+      toast.success("Policy purchased successfully!");
+      setIsBuying(false);
+      setFormData({ premium: "", coverage: "" });
+      fetchMyPolicies();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.reason || err.message || "Failed to purchase policy");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <UserLayout title="My Policies" subtitle="View and manage your insurance policies">
+    <UserLayout title="My Policies" subtitle="View, manage, and purchase new insurance policies on the blockchain.">
       <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-border/10">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-display font-semibold">Your Active Covers</h2>
+            <Button variant="ghost" size="icon" onClick={fetchMyPolicies} disabled={isLoading}>
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+          {hasWallet() ? (
+            <Button onClick={() => setIsBuying(!isBuying)} className="bg-gradient-to-r from-primary to-secondary">
+              {isBuying ? "Cancel Purchase" : "Purchase Policy"}
+              {!isBuying && <Plus className="ml-2 h-4 w-4" />}
+            </Button>
+          ) : (
+            <Button onClick={() => toast.error("Please install MetaMask to purchase a policy")} className="bg-muted text-muted-foreground">
+              MetaMask Required
+            </Button>
+          )}
+        </div>
+
+        <AnimatePresence>
+          {isBuying && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <GlassCard variant="glow" className="mb-6">
+                <form onSubmit={handlePurchase} className="space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Initialize New On-Chain Policy</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Standard Premium (in wei)</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 1000"
+                        className="bg-muted/50"
+                        value={formData.premium}
+                        onChange={(e) => setFormData({ ...formData, premium: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Max Coverage (in wei)</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 50000"
+                        className="bg-muted/50"
+                        value={formData.coverage}
+                        onChange={(e) => setFormData({ ...formData, coverage: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  {hasWallet() ? (
+                    <Button type="submit" className="w-full md:w-auto" disabled={isSubmitting}>
+                      {isSubmitting ? "Processing..." : "Sign & Create via MetaMask"}
+                    </Button>
+                  ) : (
+                    <Button type="button" className="w-full md:w-auto bg-muted text-muted-foreground" onClick={() => toast.error("Please install MetaMask")}>
+                      Install MetaMask to Continue
+                    </Button>
+                  )}
+                </form>
+              </GlassCard>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {policies.length === 0 && !isLoading && (
+          <p className="text-muted-foreground pt-4">No policies found for your connected wallet. Purchase one above!</p>
+        )}
+
         {policies.map((policy, index) => (
           <motion.div
             key={policy.id}
@@ -72,7 +187,7 @@ export default function UserPolicies() {
                       </div>
                       <div>
                         <h3 className="text-xl font-display font-semibold">{policy.name}</h3>
-                        <p className="text-sm text-muted-foreground">{policy.id}</p>
+                        <p className="text-sm text-muted-foreground">ID: {policy.id}</p>
                       </div>
                     </div>
                     <span className="px-3 py-1 rounded-full bg-success/10 text-success text-sm font-medium capitalize">
@@ -116,7 +231,7 @@ export default function UserPolicies() {
 
                   {/* Coverage Features */}
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-3">Coverage Includes:</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-3">Verified By Smart Contract:</p>
                     <div className="grid grid-cols-2 gap-2">
                       {policy.features.map((feature, i) => (
                         <div key={i} className="flex items-center gap-2">
@@ -132,42 +247,21 @@ export default function UserPolicies() {
 
                 {/* Actions */}
                 <div className="flex flex-col gap-3 lg:w-48">
+                  <Link to="/user/submit-claim" className="w-full">
+                    <Button className="w-full bg-gradient-to-r from-primary to-secondary">
+                      File a Claim
+                    </Button>
+                  </Link>
                   <Button variant="outline" className="justify-start">
                     <FileText className="mr-2 h-4 w-4" />
-                    View Details
+                    Explorer View
                     <ChevronRight className="ml-auto h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" className="justify-start">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download PDF
-                  </Button>
-                  <Button className="bg-gradient-to-r from-primary to-secondary">
-                    File a Claim
                   </Button>
                 </div>
               </div>
             </GlassCard>
           </motion.div>
         ))}
-
-        {/* Renewal Notice */}
-        <GlassCard className="border-warning/30 bg-warning/5">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-6 w-6 text-warning" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold mb-1">Policy Renewal Reminder</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Your Auto Insurance policy (POL-AUTO-2024) is expiring on Dec 31, 2024. 
-                Renew now to maintain continuous coverage.
-              </p>
-              <Button variant="outline" size="sm" className="border-warning text-warning hover:bg-warning/10">
-                Renew Policy
-              </Button>
-            </div>
-          </div>
-        </GlassCard>
       </div>
     </UserLayout>
   );

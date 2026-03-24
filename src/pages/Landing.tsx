@@ -64,7 +64,7 @@ export default function Landing() {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                 <Shield className="h-5 w-5 text-white" />
               </div>
-              <span className="font-display font-bold text-xl">ChainSure</span>
+              <span className="font-display font-bold text-xl">RealtyCheck</span>
             </Link>
             
             <div className="hidden md:flex items-center gap-8">
@@ -191,7 +191,7 @@ export default function Landing() {
             className="text-center max-w-2xl mx-auto mb-16"
           >
             <h2 className="text-4xl font-display font-bold mb-4">
-              Why Choose ChainSure?
+              Why Choose RealtyCheck?
             </h2>
             <p className="text-lg text-muted-foreground">
               Built on cutting-edge blockchain technology to deliver unmatched 
@@ -408,11 +408,11 @@ export default function Landing() {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                 <Shield className="h-4 w-4 text-white" />
               </div>
-              <span className="font-display font-bold">ChainSure</span>
+              <span className="font-display font-bold">RealtyCheck</span>
             </div>
             
             <p className="text-sm text-muted-foreground">
-              © 2024 ChainSure. All rights reserved. Powered by blockchain technology.
+              © 2024 RealtyCheck. All rights reserved. Powered by blockchain technology.
             </p>
             
             <div className="flex items-center gap-6">

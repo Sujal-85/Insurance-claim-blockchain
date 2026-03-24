@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ClaimStatus {
+  PENDING
+  AI_VERIFIED
+  APPROVED
+  REJECTED
+}
+
+enum BlockchainStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String    @unique
+  passwordHash  String?   // Optional if wallet-only login
+  walletAddress String?   @unique
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  claims        Claim[]
+}
+
+model Admin {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(ADMIN)
+  createdAt     DateTime  @default(now())
+}
+
+model Policy {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  policyName    String
+  coverageAmount Float
+  rules         Json      // Flexible rules structure
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  claims        Claim[]
+}
+
+model Claim {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  user            User             @relation(fields: [userId], references: [id])
+  userId          String           @db.ObjectId
+  policy          Policy           @relation(fields: [policyId], references: [id])
+  policyId        String           @db.ObjectId
+  amount          Float
+  description     String?
+  incidentType    String?
+  incidentDate    DateTime?
+  location        String?
+  status          ClaimStatus      @default(PENDING)
+  aiRiskScore     Float?
+  blockchainTxHash String?
+  blockchainStatus BlockchainStatus @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  documents       Document[]
+  aiVerification  AI_Verification?
+}
+
+model Document {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  claim     Claim    @relation(fields: [claimId], references: [id])
+  claimId   String   @db.ObjectId
+  ipfsHash  String
+  fileType  String
+  createdAt DateTime @default(now())
+}
+
+model AI_Verification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  claim       Claim    @relation(fields: [claimId], references: [id])
+  claimId     String   @unique @db.ObjectId
+  fraudScore  Float
+  explanation String
+  createdAt   DateTime @default(now())
+}
+
+model Audit_Log {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  action      String
+  performedBy String   // User ID or "SYSTEM"
+  details     Json?
+  timestamp   DateTime @default(now())
+}

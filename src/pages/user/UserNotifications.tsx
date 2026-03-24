@@ -16,80 +16,85 @@ import {
   Trash2,
 } from "lucide-react";
 
-const notifications = [
-  {
-    id: 1,
-    type: "approval",
-    title: "Claim Approved",
-    message: "Your claim CLM-2024-002 has been approved. Payment of $850 will be processed within 24 hours.",
-    date: "2 hours ago",
-    read: false,
-    icon: CheckCircle,
-    color: "text-success bg-success/10",
-  },
-  {
-    id: 2,
-    type: "update",
-    title: "Claim Under Review",
-    message: "Your claim CLM-2024-001 is currently under review by our team. Expected completion: 2-3 business days.",
-    date: "5 hours ago",
-    read: false,
-    icon: Clock,
-    color: "text-primary bg-primary/10",
-  },
-  {
-    id: 3,
-    type: "blockchain",
-    title: "Blockchain Verification Complete",
-    message: "Your claim CLM-2024-001 has been successfully recorded on the blockchain with transaction hash 0x8f2b...4a9c",
-    date: "1 day ago",
-    read: true,
-    icon: Shield,
-    color: "text-secondary bg-secondary/10",
-  },
-  {
-    id: 4,
-    type: "document",
-    title: "Document Verification",
-    message: "All documents for claim CLM-2024-001 have been verified successfully.",
-    date: "1 day ago",
-    read: true,
-    icon: FileText,
-    color: "text-primary bg-primary/10",
-  },
-  {
-    id: 5,
-    type: "payment",
-    title: "Payment Processed",
-    message: "Payment of $450 for claim CLM-2023-045 has been transferred to your account.",
-    date: "3 days ago",
-    read: true,
-    icon: DollarSign,
-    color: "text-success bg-success/10",
-  },
-  {
-    id: 6,
-    type: "rejection",
-    title: "Claim Rejected",
-    message: "Your claim CLM-2023-032 has been rejected. Reason: Procedure not covered under current policy terms.",
-    date: "1 week ago",
-    read: true,
-    icon: XCircle,
-    color: "text-destructive bg-destructive/10",
-  },
-  {
-    id: 7,
-    type: "warning",
-    title: "Policy Renewal Reminder",
-    message: "Your Auto Insurance policy (POL-AUTO-2024) expires in 30 days. Renew now to maintain coverage.",
-    date: "2 weeks ago",
-    read: true,
-    icon: AlertCircle,
-    color: "text-warning bg-warning/10",
-  },
-];
+import { useState, useEffect } from "react";
+import { getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
 
 export default function UserNotifications() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const address = await getSignerAddress();
+        const contract = getContractReadOnly();
+        const cCount = await contract.claimCount();
+        const myNotes = [];
+
+        for (let i = 1; i <= Number(cCount); i++) {
+          const claim = await contract.claims(i);
+
+          if (claim.claimant.toLowerCase() === address.toLowerCase()) {
+            const dateStr = "On-Chain"; // Omitted since block timestamp is unavailable natively
+            
+            if (!claim.processed) {
+              myNotes.push({
+                id: `${claim.claimId.toString()}-pending`,
+                type: "update",
+                title: "Claim Under Review",
+                message: `Your claim #${claim.claimId.toString()} is currently under review by our team.`,
+                date: dateStr,
+                read: false,
+                icon: Clock,
+                color: "text-primary bg-primary/10",
+              });
+            } else if (claim.processed && claim.approved) {
+              myNotes.push({
+                id: `${claim.claimId.toString()}-approved`,
+                type: "approval",
+                title: "Claim Approved",
+                message: `Your claim #${claim.claimId.toString()} has been approved. Payment will be processed.`,
+                date: dateStr,
+                read: false,
+                icon: CheckCircle,
+                color: "text-success bg-success/10",
+              });
+            } else if (claim.processed && !claim.approved) {
+              myNotes.push({
+                id: `${claim.claimId.toString()}-rejected`,
+                type: "rejection",
+                title: "Claim Rejected",
+                message: `Your claim #${claim.claimId.toString()} has been rejected.`,
+                date: dateStr,
+                read: false,
+                icon: XCircle,
+                color: "text-destructive bg-destructive/10",
+              });
+            }
+          }
+        }
+        
+        // Add a general notification for connected wallet
+        myNotes.push({
+          id: "welcome",
+          type: "blockchain",
+          title: "Blockchain Connected",
+          message: "Secure session established with Web3 Wallet.",
+          date: "Just now",
+          read: true,
+          icon: Shield,
+          color: "text-secondary bg-secondary/10",
+        });
+
+        // Display newest first
+        setNotifications(myNotes.reverse());
+
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (

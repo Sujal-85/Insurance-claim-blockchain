@@ -6,10 +6,33 @@ import { Label } from "@/components/ui/label";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Shield, ArrowLeft, Mail, Lock, Eye, EyeOff, AlertTriangle, Key } from "lucide-react";
 import { useState } from "react";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<"credentials" | "mfa">("credentials");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const response = await api.post('/auth/admin-login', { email, password });
+      localStorage.setItem('auth_token', response.data.access_token);
+      localStorage.setItem('user_role', 'ADMIN');
+      toast.success("Login successful! Please verify MFA.");
+      setStep("mfa");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Login failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex relative overflow-hidden">
@@ -24,7 +47,7 @@ export default function AdminLogin() {
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div>
-              <span className="font-display font-bold text-2xl text-white block">ChainSure</span>
+              <span className="font-display font-bold text-2xl text-white block">RealtyCheck</span>
               <span className="text-xs text-sidebar-primary">Admin Portal</span>
             </div>
           </Link>
@@ -96,7 +119,7 @@ export default function AdminLogin() {
                   </div>
                 </div>
 
-                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setStep("mfa"); }}>
+                <form className="space-y-4" onSubmit={handleLogin}>
                   <div className="space-y-2">
                     <Label htmlFor="admin-email">Admin Email</Label>
                     <div className="relative">
@@ -104,8 +127,11 @@ export default function AdminLogin() {
                       <Input
                         id="admin-email"
                         type="email"
-                        placeholder="admin@chainsure.com"
+                        placeholder="admin@RealtyCheck.com"
                         className="pl-10 h-12 bg-muted/50"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
                       />
                     </div>
                   </div>
@@ -119,6 +145,9 @@ export default function AdminLogin() {
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         className="pl-10 pr-10 h-12 bg-muted/50"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
                       />
                       <button
                         type="button"
@@ -130,8 +159,12 @@ export default function AdminLogin() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full h-12 bg-gradient-to-r from-security to-primary hover:opacity-90 mt-2">
-                    Continue to Verification
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 bg-gradient-to-r from-security to-primary hover:opacity-90 mt-2"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Signing in..." : "Continue to Verification"}
                   </Button>
                 </form>
               </>

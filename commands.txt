@@ -1,0 +1,6 @@
+# Secure Chain Claims Output #
+
+1. Start the Frontend Development Server:
+```
+npm run dev
+```

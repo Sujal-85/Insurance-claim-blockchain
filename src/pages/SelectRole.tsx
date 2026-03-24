@@ -30,7 +30,7 @@ export default function SelectRole() {
             <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-4xl font-display font-bold mb-4">
-            Welcome to ChainSure
+            Welcome to RealtyCheck
           </h1>
           <p className="text-lg text-muted-foreground">
             Select your role to continue to the platform

@@ -1,23 +1,58 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Shield, ArrowLeft, Wallet, Mail, Lock, Eye, EyeOff, User, Check, ChevronRight } from "lucide-react";
+import { ArrowLeft, Wallet, Mail, Lock, Eye, EyeOff, Check, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
 export default function UserSignup() {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // Form State
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+  });
 
   const steps = [
     { number: 1, title: "Account" },
     { number: 2, title: "Verify" },
     { number: 3, title: "Complete" },
   ];
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const response = await api.post("/auth/signup", {
+        email: formData.email,
+        password: formData.password,
+        name: `${formData.firstName} ${formData.lastName}`,
+        role: "USER"
+      });
+      
+      localStorage.setItem("auth_token", response.data.access_token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      setStep(3); // Skip email verification step for now to provide immediate access
+      toast.success("Account created successfully!");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Signup failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex relative overflow-hidden">
@@ -28,10 +63,10 @@ export default function UserSignup() {
         
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <Shield className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center p-2">
+               <img src="/logo.png" alt="RealtyCheck Logo" className="h-8 w-8 object-contain brightness-0 invert" />
             </div>
-            <span className="font-display font-bold text-2xl text-white">ChainSure</span>
+            <span className="font-display font-bold text-2xl text-white">RealtyCheck</span>
           </Link>
         </div>
 
@@ -136,15 +171,29 @@ export default function UserSignup() {
                   <Separator className="flex-1" />
                 </div>
 
-                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setStep(2); }}>
+                <form className="space-y-4" onSubmit={handleSignup}>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" placeholder="John" className="h-12 bg-muted/50" />
+                      <Input 
+                        id="firstName" 
+                        placeholder="John" 
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                        required
+                        className="h-12 bg-muted/50" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" placeholder="Doe" className="h-12 bg-muted/50" />
+                      <Input 
+                        id="lastName" 
+                        placeholder="Doe" 
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                        required
+                        className="h-12 bg-muted/50" 
+                      />
                     </div>
                   </div>
 
@@ -156,6 +205,9 @@ export default function UserSignup() {
                         id="email"
                         type="email"
                         placeholder="john@example.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        required
                         className="pl-10 h-12 bg-muted/50"
                       />
                     </div>
@@ -169,6 +221,9 @@ export default function UserSignup() {
                         id="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Create a strong password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        required
                         className="pl-10 pr-10 h-12 bg-muted/50"
                       />
                       <button
@@ -182,7 +237,7 @@ export default function UserSignup() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="terms" />
+                    <Checkbox id="terms" required />
                     <label htmlFor="terms" className="text-sm text-muted-foreground">
                       I agree to the{" "}
                       <a href="#" className="text-primary hover:underline">Terms of Service</a>
@@ -191,45 +246,18 @@ export default function UserSignup() {
                     </label>
                   </div>
 
-                  <Button type="submit" className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                    Continue
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                  >
+                    {isLoading ? "Creating Account..." : "Continue"}
                   </Button>
                 </form>
               </>
             )}
 
-            {step === 2 && (
-              <>
-                <div className="mb-6">
-                  <h1 className="text-3xl font-display font-bold mb-2">Verify your email</h1>
-                  <p className="text-muted-foreground">We've sent a code to john@example.com</p>
-                </div>
-
-                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setStep(3); }}>
-                  <div className="space-y-2">
-                    <Label>Verification Code</Label>
-                    <div className="grid grid-cols-6 gap-2">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <Input
-                          key={i}
-                          maxLength={1}
-                          className="h-14 text-center text-2xl font-mono bg-muted/50"
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button type="submit" className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90 mt-4">
-                    Verify Email
-                  </Button>
-
-                  <p className="text-center text-sm text-muted-foreground">
-                    Didn't receive code?{" "}
-                    <button className="text-primary hover:underline">Resend</button>
-                  </p>
-                </form>
-              </>
-            )}
+            {/* Step 2 (Verification) is handled by auto-transition to Step 3 in handleSignup for now */}
 
             {step === 3 && (
               <>
@@ -237,9 +265,9 @@ export default function UserSignup() {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="w-20 h-20 rounded-full bg-gradient-to-r from-success/20 to-success/10 flex items-center justify-center mx-auto mb-6"
+                    className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 flex items-center justify-center mx-auto mb-6"
                   >
-                    <Check className="h-10 w-10 text-success" />
+                    <Check className="h-10 w-10 text-emerald-500" />
                   </motion.div>
                   <h1 className="text-3xl font-display font-bold mb-2">You're all set!</h1>
                   <p className="text-muted-foreground">Your account has been created successfully</p>
@@ -248,11 +276,11 @@ export default function UserSignup() {
                 <GlassCard className="mb-6">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold">
-                      JD
+                      {formData.firstName[0]}{formData.lastName[0]}
                     </div>
                     <div>
-                      <p className="font-semibold">John Doe</p>
-                      <p className="text-sm text-muted-foreground">john@example.com</p>
+                      <p className="font-semibold">{formData.firstName} {formData.lastName}</p>
+                      <p className="text-sm text-muted-foreground">{formData.email}</p>
                     </div>
                   </div>
                 </GlassCard>
@@ -265,7 +293,7 @@ export default function UserSignup() {
               </>
             )}
 
-            {step === 1 && (
+            {(step === 1) && (
               <p className="text-center text-sm text-muted-foreground mt-6">
                 Already have an account?{" "}
                 <Link to="/login/user" className="text-primary font-medium hover:underline">

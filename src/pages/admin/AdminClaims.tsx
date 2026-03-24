@@ -5,17 +5,64 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Search, Filter, Eye, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-
-const claims = [
-  { id: "CLM-2024-015", user: "Alice Johnson", type: "Auto", amount: "$3,200", risk: 18, status: "pending" as const, date: "Jan 15, 2024" },
-  { id: "CLM-2024-014", user: "Bob Smith", type: "Health", amount: "$8,500", risk: 75, status: "processing" as const, date: "Jan 14, 2024" },
-  { id: "CLM-2024-013", user: "Carol White", type: "Property", amount: "$1,200", risk: 12, status: "approved" as const, date: "Jan 13, 2024" },
-  { id: "CLM-2024-012", user: "David Brown", type: "Auto", amount: "$15,000", risk: 45, status: "pending" as const, date: "Jan 12, 2024" },
-  { id: "CLM-2024-011", user: "Eva Martinez", type: "Health", amount: "$650", risk: 8, status: "approved" as const, date: "Jan 11, 2024" },
-  { id: "CLM-2024-010", user: "Frank Lee", type: "Property", amount: "$22,000", risk: 82, status: "rejected" as const, date: "Jan 10, 2024" },
-];
+import { useState, useEffect } from "react";
+import { getContractReadOnly, getContractWithSigner } from "@/lib/ethereum";
+import { toast } from "sonner";
 
 export default function AdminClaims() {
+  const [claims, setClaims] = useState<any[]>([]);
+
+  const fetchClaims = async () => {
+    try {
+      const contract = getContractReadOnly();
+      const count = await contract.claimCount();
+      const fetched = [];
+      for (let i = 1; i <= Number(count); i++) {
+        const claimData = await contract.claims(i);
+        let statusString = "pending";
+        if (claimData.processed && claimData.approved) statusString = "approved";
+        if (claimData.processed && !claimData.approved) statusString = "rejected";
+
+        fetched.push({
+          id: claimData.claimId.toString(),
+          user: claimData.claimant,
+          type: "N/A", // policy type derived from policy could be added
+          amount: claimData.reason.substring(0, 20) + '...', // Mock amount with reason limits
+          risk: 10, // Default risk
+          status: statusString as any,
+          date: "On-Chain", // Timestamp omitted
+        });
+      }
+      setClaims(fetched);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to fetch claims from blockchain");
+    }
+  };
+
+  useEffect(() => {
+    fetchClaims();
+  }, []);
+
+  const handleProcessClaim = async (claimIdNum: bigint, isApprove: boolean) => {
+    try {
+      const contract = await getContractWithSigner();
+      let tx;
+      if (isApprove) {
+        tx = await contract.approveClaim(claimIdNum);
+      } else {
+        tx = await contract.rejectClaim(claimIdNum);
+      }
+      toast.info("Processing transaction...");
+      await tx.wait();
+      toast.success(`Claim ${isApprove ? 'approved' : 'rejected'} successfully`);
+      fetchClaims();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.reason || err.message || "Failed to process claim");
+    }
+  };
+
   return (
     <AdminLayout title="Claims Management" subtitle="Review and process insurance claims">
       <div className="flex gap-4 mb-6">
@@ -66,8 +113,16 @@ export default function AdminClaims() {
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-success"><CheckCircle className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-destructive"><XCircle className="h-4 w-4" /></Button>
+                      {claim.status === "pending" && (
+                        <>
+                          <Button variant="ghost" size="icon" className="text-success" onClick={() => handleProcessClaim(BigInt(claim.id), true)}>
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleProcessClaim(BigInt(claim.id), false)}>
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </motion.tr>

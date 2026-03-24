@@ -38,15 +38,14 @@ export function UserSidebar() {
       )}
     >
       <div className="flex flex-col h-full">
-        {/* Logo */}
         <div className="p-6 border-b border-sidebar-border">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <Shield className="h-5 w-5 text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="RealtyCheck Logo" className="w-full h-full object-cover" />
             </div>
             {!collapsed && (
               <span className="font-display font-bold text-lg text-sidebar-foreground">
-                ChainSure
+                RealtyCheck
               </span>
             )}
           </Link>

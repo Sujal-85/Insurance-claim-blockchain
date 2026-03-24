@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { getContractWithSigner, getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
+import { toast } from "sonner";
 import {
   Upload,
   FileText,
@@ -34,6 +36,45 @@ const steps = [
 export default function SubmitClaim() {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
+    policyId: "",
+    incidentType: "",
+    incidentDate: "",
+    amount: 0,
+    description: "",
+    location: "",
+  });
+
+  useEffect(() => {
+    const fetchPolicies = async () => {
+      try {
+        const address = await getSignerAddress();
+        const contract = getContractReadOnly();
+        const policyCount = await contract.policyCount();
+        const policiesArr = [];
+        for (let i = 1; i <= Number(policyCount); i++) {
+          const policy = await contract.policies(i);
+          // Only fetch policies belonging to the current user (connected address)
+          if (policy.active && policy.holder.toLowerCase() === address.toLowerCase()) {
+            policiesArr.push({
+              id: policy.policyId.toString(),
+              policyName: `Policy #${policy.policyId.toString()}`, // Default name
+              coverageAmount: Number(policy.coverage),
+            });
+          }
+        }
+        setPolicies(policiesArr);
+      } catch (error) {
+        console.error("Failed to fetch policies from blockchain", error);
+        toast.error("Failed to load policies");
+      }
+    };
+    fetchPolicies();
+  }, []);
 
   const addFile = () => {
     setUploadedFiles([...uploadedFiles, `document-${uploadedFiles.length + 1}.pdf`]);
@@ -41,6 +82,26 @@ export default function SubmitClaim() {
 
   const removeFile = (index: number) => {
     setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    try {
+      const contract = await getContractWithSigner();
+      const reason = `${formData.incidentType}: ${formData.description}`;
+      const policyIdNum = BigInt(formData.policyId);
+      const tx = await contract.submitClaim(policyIdNum, reason);
+      toast.info("Transaction submitted, waiting for confirmation...");
+      await tx.wait(); // Wait for confirmation
+      
+      toast.success("Claim submitted successfully and recorded on blockchain!");
+      navigate('/user/claims');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.reason || error.message || "Failed to submit claim on blockchain");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -88,29 +149,38 @@ export default function SubmitClaim() {
                 <h2 className="text-xl font-display font-semibold mb-6">Select Policy</h2>
                 
                 <div className="space-y-4">
-                  {[
-                    { id: "POL-AUTO-2024", name: "Comprehensive Auto Insurance", coverage: "$50,000" },
-                    { id: "POL-HEALTH-2024", name: "Premium Health Coverage", coverage: "$100,000" },
-                    { id: "POL-PROP-2024", name: "Home & Property Insurance", coverage: "$250,000" },
-                  ].map((policy) => (
+                  {policies.map((policy) => (
                     <label
                       key={policy.id}
-                      className="flex items-center gap-4 p-4 rounded-xl border-2 border-transparent bg-muted/30 hover:border-primary/30 cursor-pointer transition-all has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                      className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer bg-muted/30 ${
+                        formData.policyId === policy.id
+                          ? "border-primary bg-primary/5"
+                          : "border-transparent hover:border-primary/30"
+                      }`}
                     >
-                      <input type="radio" name="policy" className="sr-only" />
+                      <input
+                        type="radio"
+                        name="policy"
+                        className="sr-only"
+                        checked={formData.policyId === policy.id}
+                        onChange={() => setFormData({ ...formData, policyId: policy.id })}
+                      />
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                         <Shield className="h-6 w-6 text-primary" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium">{policy.name}</p>
+                        <p className="font-medium">{policy.policyName}</p>
                         <p className="text-sm text-muted-foreground">{policy.id}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">{policy.coverage}</p>
+                        <p className="font-semibold">${policy.coverageAmount}</p>
                         <p className="text-xs text-muted-foreground">Max Coverage</p>
                       </div>
                     </label>
                   ))}
+                  {policies.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No active policies found.</p>
+                  )}
                 </div>
               </GlassCard>
             </motion.div>
@@ -131,23 +201,31 @@ export default function SubmitClaim() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Incident Type</Label>
-                      <Select>
-                        <SelectTrigger className="h-12 bg-muted/50">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="accident">Vehicle Accident</SelectItem>
-                          <SelectItem value="theft">Theft</SelectItem>
-                          <SelectItem value="damage">Property Damage</SelectItem>
-                          <SelectItem value="medical">Medical Emergency</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Select 
+                          value={formData.incidentType} 
+                          onValueChange={(value) => setFormData({ ...formData, incidentType: value })}
+                        >
+                          <SelectTrigger className="h-12 bg-muted/50">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="accident">Vehicle Accident</SelectItem>
+                            <SelectItem value="theft">Theft</SelectItem>
+                            <SelectItem value="damage">Property Damage</SelectItem>
+                            <SelectItem value="medical">Medical Emergency</SelectItem>
+                          </SelectContent>
+                        </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Incident Date</Label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input type="date" className="pl-10 h-12 bg-muted/50" />
+                        <Input 
+                          type="date" 
+                          className="pl-10 h-12 bg-muted/50" 
+                          value={formData.incidentDate}
+                          onChange={(e) => setFormData({ ...formData, incidentDate: e.target.value })}
+                        />
                       </div>
                     </div>
                   </div>
@@ -156,7 +234,13 @@ export default function SubmitClaim() {
                     <Label>Claim Amount</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input type="number" placeholder="Enter amount" className="pl-10 h-12 bg-muted/50" />
+                        <Input 
+                          type="number" 
+                          placeholder="Enter amount" 
+                          className="pl-10 h-12 bg-muted/50" 
+                          value={formData.amount || ''}
+                          onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
+                        />
                     </div>
                   </div>
 
@@ -165,12 +249,19 @@ export default function SubmitClaim() {
                     <Textarea
                       placeholder="Provide a detailed description of the incident..."
                       className="min-h-[120px] bg-muted/50"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Location of Incident</Label>
-                    <Input placeholder="Enter address or location" className="h-12 bg-muted/50" />
+                    <Input 
+                      placeholder="Enter address or location" 
+                      className="h-12 bg-muted/50" 
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    />
                   </div>
                 </div>
               </GlassCard>
@@ -301,8 +392,7 @@ export default function SubmitClaim() {
                   <div className="p-4 rounded-xl bg-muted/30">
                     <p className="text-sm text-muted-foreground mb-1">Description</p>
                     <p className="font-medium">
-                      Minor collision at intersection. Another vehicle ran a red light and 
-                      hit the front bumper of my car. Police report filed at scene.
+                      {formData.description || "No description provided."}
                     </p>
                   </div>
 
@@ -358,12 +448,14 @@ export default function SubmitClaim() {
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
-            <Link to="/user/claims">
-              <Button className="bg-gradient-to-r from-primary to-secondary">
-                Submit Claim
-                <Check className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+            <Button 
+              className="bg-gradient-to-r from-primary to-secondary" 
+              onClick={handleSubmit}
+              disabled={isLoading || !formData.policyId}
+            >
+              {isLoading ? "Submitting..." : "Submit Claim"}
+              <Check className="ml-2 h-4 w-4" />
+            </Button>
           )}
         </div>
       </div>

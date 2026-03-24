@@ -20,58 +20,9 @@ import {
   DollarSign,
 } from "lucide-react";
 
-const claims = [
-  {
-    id: "CLM-2024-001",
-    type: "Auto Insurance",
-    description: "Vehicle collision damage claim",
-    amount: "$2,500",
-    status: "processing" as const,
-    date: "Jan 15, 2024",
-    policyId: "POL-AUTO-2024",
-    progress: 60,
-  },
-  {
-    id: "CLM-2024-002",
-    type: "Health Insurance",
-    description: "Medical procedure reimbursement",
-    amount: "$850",
-    status: "approved" as const,
-    date: "Jan 12, 2024",
-    policyId: "POL-HEALTH-2024",
-    progress: 100,
-  },
-  {
-    id: "CLM-2024-003",
-    type: "Property Insurance",
-    description: "Water damage restoration",
-    amount: "$5,200",
-    status: "pending" as const,
-    date: "Jan 10, 2024",
-    policyId: "POL-PROP-2024",
-    progress: 25,
-  },
-  {
-    id: "CLM-2023-045",
-    type: "Auto Insurance",
-    description: "Windshield replacement",
-    amount: "$450",
-    status: "approved" as const,
-    date: "Dec 5, 2023",
-    policyId: "POL-AUTO-2024",
-    progress: 100,
-  },
-  {
-    id: "CLM-2023-032",
-    type: "Health Insurance",
-    description: "Annual health checkup",
-    amount: "$200",
-    status: "rejected" as const,
-    date: "Nov 20, 2023",
-    policyId: "POL-HEALTH-2024",
-    progress: 100,
-  },
-];
+import { useState, useEffect } from "react";
+import { getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
+import { toast } from "sonner";
 
 const statusIcons = {
   pending: Clock,
@@ -81,6 +32,44 @@ const statusIcons = {
 };
 
 export default function UserClaims() {
+  const [claims, setClaims] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchMyClaims = async () => {
+      try {
+        const address = await getSignerAddress();
+        const contract = getContractReadOnly();
+        const count = await contract.claimCount();
+        const fetched = [];
+
+        for (let i = 1; i <= Number(count); i++) {
+          const claim = await contract.claims(i);
+          if (claim.claimant.toLowerCase() === address.toLowerCase()) {
+            let statusString = "pending";
+            let progress = 25;
+            if (claim.processed && claim.approved) { statusString = "approved"; progress = 100; }
+            if (claim.processed && !claim.approved) { statusString = "rejected"; progress = 100; }
+
+            fetched.push({
+              id: claim.claimId.toString(),
+              type: "Blockchain Claim",
+              description: claim.reason || "Incident reported",
+              amount: "N/A", // Amount not applicable in new contract schema
+              status: statusString as any,
+              date: "On-Chain",
+              policyId: claim.policyId.toString(),
+              progress,
+            });
+          }
+        }
+        setClaims(fetched);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to fetch claims");
+      }
+    };
+    fetchMyClaims();
+  }, []);
   return (
     <UserLayout title="My Claims" subtitle="Track and manage all your insurance claims">
       {/* Search and Filter */}
@@ -114,15 +103,47 @@ export default function UserClaims() {
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
-          {claims.map((claim, index) => {
-            const StatusIcon = statusIcons[claim.status];
-            return (
-              <motion.div
-                key={claim.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
+          {claims.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <GlassCard className="text-center py-16">
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 150 }}
+                  className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center relative"
+                >
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                  >
+                    <FileText className="h-10 w-10 text-primary" />
+                  </motion.div>
+                </motion.div>
+                <h3 className="text-2xl font-semibold mb-3 font-display">No Claims Found</h3>
+                <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
+                  There are currently no records tied to your account. Securely submit your first blockchain-verified claim today.
+                </p>
+                <Link to="/user/submit-claim">
+                  <Button size="lg" className="bg-gradient-to-r from-primary to-secondary shadow-lg hover:shadow-primary/25 transition-all">
+                    Submit New Claim
+                  </Button>
+                </Link>
+              </GlassCard>
+            </motion.div>
+          ) : (
+            claims.map((claim, index) => {
+              const StatusIcon = statusIcons[claim.status as keyof typeof statusIcons];
+              return (
+                <motion.div
+                  key={claim.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
                 <Link to={`/user/claims/${claim.id}`}>
                   <GlassCard className="hover:border-primary/30 cursor-pointer transition-all">
                     <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -195,7 +216,8 @@ export default function UserClaims() {
                 </Link>
               </motion.div>
             );
-          })}
+          })
+          )}
         </TabsContent>
 
         {/* Other tabs would filter the claims */}
@@ -203,7 +225,7 @@ export default function UserClaims() {
           <GlassCard className="text-center py-12">
             <Clock className="h-12 w-12 text-warning mx-auto mb-4" />
             <h3 className="font-semibold mb-2">Pending Claims</h3>
-            <p className="text-muted-foreground">You have 1 claim awaiting initial review</p>
+            <p className="text-muted-foreground">You have {claims.filter(c => c.status === "pending").length} claim(s) awaiting initial review</p>
           </GlassCard>
         </TabsContent>
 
@@ -211,7 +233,7 @@ export default function UserClaims() {
           <GlassCard className="text-center py-12">
             <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
             <h3 className="font-semibold mb-2">Processing Claims</h3>
-            <p className="text-muted-foreground">You have 1 claim being processed</p>
+            <p className="text-muted-foreground">You have {claims.filter(c => c.status === "processing").length} claim(s) being processed</p>
           </GlassCard>
         </TabsContent>
 
@@ -219,7 +241,7 @@ export default function UserClaims() {
           <GlassCard className="text-center py-12">
             <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
             <h3 className="font-semibold mb-2">Approved Claims</h3>
-            <p className="text-muted-foreground">You have 2 approved claims</p>
+            <p className="text-muted-foreground">You have {claims.filter(c => c.status === "approved").length} approved claim(s)</p>
           </GlassCard>
         </TabsContent>
 
@@ -227,7 +249,7 @@ export default function UserClaims() {
           <GlassCard className="text-center py-12">
             <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h3 className="font-semibold mb-2">Rejected Claims</h3>
-            <p className="text-muted-foreground">You have 1 rejected claim</p>
+            <p className="text-muted-foreground">You have {claims.filter(c => c.status === "rejected").length} rejected claim(s)</p>
           </GlassCard>
         </TabsContent>
       </Tabs>

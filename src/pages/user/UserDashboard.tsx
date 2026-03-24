@@ -19,29 +19,8 @@ import {
   DollarSign,
 } from "lucide-react";
 
-const recentClaims = [
-  {
-    id: "CLM-2024-001",
-    type: "Auto Insurance",
-    amount: "$2,500",
-    status: "processing" as const,
-    date: "Jan 15, 2024",
-  },
-  {
-    id: "CLM-2024-002",
-    type: "Health Insurance",
-    amount: "$850",
-    status: "approved" as const,
-    date: "Jan 12, 2024",
-  },
-  {
-    id: "CLM-2024-003",
-    type: "Property Insurance",
-    amount: "$5,200",
-    status: "pending" as const,
-    date: "Jan 10, 2024",
-  },
-];
+import { useState, useEffect } from "react";
+import { getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
 
 const quickActions = [
   { icon: Plus, label: "Submit New Claim", path: "/user/submit-claim", color: "from-primary to-secondary" },
@@ -50,6 +29,72 @@ const quickActions = [
 ];
 
 export default function UserDashboard() {
+  const [stats, setStats] = useState({ activePolicies: 0, totalClaims: 0, approvedClaims: 0, totalPayouts: 0 });
+  const [recentClaims, setRecentClaims] = useState<any[]>([]);
+  const [activePolicies, setActivePolicies] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const address = await getSignerAddress();
+        const contract = getContractReadOnly();
+
+        // Fetch Policies
+        const pCount = await contract.policyCount();
+        const myPolicies = [];
+        for (let i = 1; i <= Number(pCount); i++) {
+          const pol = await contract.policies(i);
+          if (pol.holder.toLowerCase() === address.toLowerCase() && pol.active) {
+            myPolicies.push({
+              name: `Policy #${pol.policyId.toString()}`,
+              coverage: `$${pol.coverage.toString()}`,
+              expires: "Active On-Chain"
+            });
+          }
+        }
+        setActivePolicies(myPolicies);
+
+        // Fetch Claims
+        const cCount = await contract.claimCount();
+        const myClaims = [];
+        let approved = 0;
+        let totalPayouts = 0;
+        for (let i = 1; i <= Number(cCount); i++) {
+          const claim = await contract.claims(i);
+          if (claim.claimant.toLowerCase() === address.toLowerCase()) {
+            let statusString = "pending";
+            if (claim.processed && claim.approved) { 
+              statusString = "approved"; 
+              approved++; 
+            }
+            if (claim.processed && !claim.approved) statusString = "rejected";
+
+            myClaims.push({
+              id: claim.claimId.toString(),
+              type: "Blockchain Claim",
+              amount: claim.reason.substring(0, 15) + "...", // Used reason as amount replacement
+              status: statusString,
+              date: "On-Chain"
+            });
+          }
+        }
+        // sort by newest
+        setRecentClaims(myClaims.reverse().slice(0, 3));
+
+        setStats({
+          activePolicies: myPolicies.length,
+          totalClaims: myClaims.length,
+          approvedClaims: approved,
+          totalPayouts: totalPayouts // Dummy, since no exact payouts
+        });
+
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+      }
+    };
+    fetchData();
+  }, []);
+
   return (
     <UserLayout title="Dashboard" subtitle="Welcome back, John! Here's your insurance overview.">
       {/* Trust Indicators */}
@@ -66,28 +111,26 @@ export default function UserDashboard() {
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
           title="Active Policies"
-          value="3"
+          value={stats.activePolicies.toString()}
           icon={FileText}
           iconColor="bg-primary/10 text-primary"
         />
         <StatsCard
           title="Total Claims"
-          value="7"
+          value={stats.totalClaims.toString()}
           icon={AlertCircle}
-          change={{ value: 12, trend: "up" }}
           iconColor="bg-secondary/10 text-secondary"
         />
         <StatsCard
           title="Approved Claims"
-          value="5"
+          value={stats.approvedClaims.toString()}
           icon={CheckCircle}
           iconColor="bg-success/10 text-success"
         />
         <StatsCard
           title="Total Payouts"
-          value="$12,450"
+          value={`$${stats.totalPayouts.toString()}`}
           icon={DollarSign}
-          change={{ value: 8, trend: "up" }}
           iconColor="bg-trust/10 text-trust"
         />
       </div>
@@ -152,7 +195,7 @@ export default function UserDashboard() {
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">{claim.amount}</p>
-                    <StatusBadge status={claim.status} size="sm" />
+                    <StatusBadge status={claim.status as any} size="sm" />
                   </div>
                 </motion.div>
               ))}
@@ -166,11 +209,8 @@ export default function UserDashboard() {
             <h2 className="text-xl font-display font-semibold mb-4">Active Policies</h2>
             
             <div className="space-y-4">
-              {[
-                { name: "Auto Insurance", coverage: "$50,000", expires: "Dec 2024" },
-                { name: "Health Insurance", coverage: "$100,000", expires: "Mar 2025" },
-                { name: "Property Insurance", coverage: "$250,000", expires: "Jun 2025" },
-              ].map((policy, index) => (
+              {activePolicies.length === 0 && <p className="text-sm text-muted-foreground">No active policies found.</p>}
+              {activePolicies.map((policy, index) => (
                 <div key={index} className="p-4 rounded-xl bg-muted/30">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">{policy.name}</span>

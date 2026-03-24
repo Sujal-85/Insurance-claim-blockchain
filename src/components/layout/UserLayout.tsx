@@ -57,7 +57,7 @@ export function UserLayout({ children, title, subtitle }: UserLayoutProps) {
         </header>
 
         {/* Content */}
-        <div className="p-8 mesh-gradient min-h-[calc(100vh-73px)]">
+        <div className="px-8 pb-8 pt-4 mesh-gradient min-h-[calc(100vh-73px)]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
