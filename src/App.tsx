@@ -25,6 +25,10 @@ import UserProfile from "./pages/user/UserProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminClaims from "./pages/admin/AdminClaims";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminPolicies from "./pages/admin/AdminPolicies";
+import AdminReviewClaims from "./pages/admin/AdminReviewClaims";
+import AdminContracts from "./pages/admin/AdminContracts";
+import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
 
 const queryClient = new QueryClient();
 
@@ -54,11 +58,11 @@ const App = () => (
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/claims" element={<AdminClaims />} />
-          <Route path="/admin/review" element={<AdminClaims />} />
-          <Route path="/admin/policies" element={<AdminClaims />} />
+          <Route path="/admin/review" element={<AdminReviewClaims />} />
+          <Route path="/admin/policies" element={<AdminPolicies />} />
           <Route path="/admin/analytics" element={<AdminAnalytics />} />
-          <Route path="/admin/contracts" element={<AdminDashboard />} />
-          <Route path="/admin/audit" element={<AdminClaims />} />
+          <Route path="/admin/contracts" element={<AdminContracts />} />
+          <Route path="/admin/audit" element={<AdminAuditLogs />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

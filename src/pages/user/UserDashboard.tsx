@@ -21,11 +21,12 @@ import {
 
 import { useState, useEffect } from "react";
 import { getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
+import api from "@/lib/api";
 
 const quickActions = [
-  { icon: Plus, label: "Submit New Claim", path: "/user/submit-claim", color: "from-primary to-secondary" },
-  { icon: FileText, label: "View Policies", path: "/user/policies", color: "from-secondary to-trust" },
-  { icon: Clock, label: "Track Claims", path: "/user/claims", color: "from-trust to-primary" },
+  { icon: Plus, label: "Submit New Claim", path: "/user/submit-claim", color: "bg-primary" },
+  { icon: FileText, label: "View Policies", path: "/user/policies", color: "bg-secondary" },
+  { icon: Clock, label: "Track Claims", path: "/user/claims", color: "bg-trust" },
 ];
 
 export default function UserDashboard() {
@@ -36,60 +37,43 @@ export default function UserDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const address = await getSignerAddress();
-        const contract = getContractReadOnly();
+        // Fetch Backend Stats
+        try {
+          const statsResponse = await api.get('/claims/stats');
+          const backendStats = statsResponse.data;
+          
+          // Fetch Policies and Claims separately to ensure consistency
+          const policiesResponse = await api.get('/policies/user/my-policies');
+          const myPolicies = policiesResponse.data.map((up: any) => ({
+            name: up.policy?.policyName || "Insurance Policy",
+            coverage: `$${up.policy?.coverageAmount?.toLocaleString() || '0'}`,
+            expires: new Date(up.endDate).toLocaleDateString()
+          }));
+          setActivePolicies(myPolicies);
 
-        // Fetch Policies
-        const pCount = await contract.policyCount();
-        const myPolicies = [];
-        for (let i = 1; i <= Number(pCount); i++) {
-          const pol = await contract.policies(i);
-          if (pol.holder.toLowerCase() === address.toLowerCase() && pol.active) {
-            myPolicies.push({
-              name: `Policy #${pol.policyId.toString()}`,
-              coverage: `$${pol.coverage.toString()}`,
-              expires: "Active On-Chain"
-            });
-          }
+          const claimsResponse = await api.get('/claims/my-claims');
+          const myClaims = claimsResponse.data.map((claim: any) => ({
+            id: claim.id,
+            type: claim.incidentType || "Blockchain Claim",
+            amount: `$${claim.amount?.toLocaleString() || '0'}`,
+            status: claim.status.toLowerCase(),
+            date: new Date(claim.createdAt).toLocaleDateString()
+          }));
+          setRecentClaims(myClaims.slice(0, 3));
+
+          // Use the length of the actual fetched arrays for the stats cards
+          setStats({
+            activePolicies: myPolicies.length,
+            totalClaims: myClaims.length,
+            approvedClaims: myClaims.filter((c: any) => c.status === 'approved').length,
+            totalPayouts: backendStats.totalPayouts || 0
+          });
+        } catch (backendErr) {
+          console.warn("Backend stats fetch failed, using defaults:", backendErr);
         }
-        setActivePolicies(myPolicies);
-
-        // Fetch Claims
-        const cCount = await contract.claimCount();
-        const myClaims = [];
-        let approved = 0;
-        let totalPayouts = 0;
-        for (let i = 1; i <= Number(cCount); i++) {
-          const claim = await contract.claims(i);
-          if (claim.claimant.toLowerCase() === address.toLowerCase()) {
-            let statusString = "pending";
-            if (claim.processed && claim.approved) { 
-              statusString = "approved"; 
-              approved++; 
-            }
-            if (claim.processed && !claim.approved) statusString = "rejected";
-
-            myClaims.push({
-              id: claim.claimId.toString(),
-              type: "Blockchain Claim",
-              amount: claim.reason.substring(0, 15) + "...", // Used reason as amount replacement
-              status: statusString,
-              date: "On-Chain"
-            });
-          }
-        }
-        // sort by newest
-        setRecentClaims(myClaims.reverse().slice(0, 3));
-
-        setStats({
-          activePolicies: myPolicies.length,
-          totalClaims: myClaims.length,
-          approvedClaims: approved,
-          totalPayouts: totalPayouts // Dummy, since no exact payouts
-        });
 
       } catch (err) {
-        console.error("Dashboard fetch error:", err);
+        console.error("Dashboard general fetch error:", err);
       }
     };
     fetchData();
@@ -147,7 +131,7 @@ export default function UserDashboard() {
             <Link to={action.path}>
               <GlassCard className="group cursor-pointer" variant="elevated">
                 <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                  <div className={`w-14 h-14 rounded-2xl ${action.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                     <action.icon className="h-7 w-7 text-white" />
                   </div>
                   <div className="flex-1">
@@ -236,7 +220,7 @@ export default function UserDashboard() {
 
           {/* Trust Score */}
           <GlassCard variant="glow" className="relative overflow-hidden">
-            <div className="absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br from-success/20 to-trust/20 rounded-full blur-2xl" />
+            <div className="absolute -top-8 -right-8 w-32 h-32 bg-success/10 rounded-full blur-2xl" />
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
@@ -248,7 +232,7 @@ export default function UserDashboard() {
                 </div>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full w-[92%] bg-gradient-to-r from-success to-trust rounded-full" />
+                <div className="h-full w-[92%] bg-success rounded-full" />
               </div>
               <p className="text-xs text-muted-foreground mt-2">92/100 - You're a trusted policyholder</p>
             </div>

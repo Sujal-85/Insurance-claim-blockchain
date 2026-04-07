@@ -67,7 +67,7 @@ export function AdminSidebar() {
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
                     isActive
-                      ? "bg-gradient-to-r from-security/80 to-primary/80 text-white"
+                      ? "bg-primary text-white"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   )}
                   whileHover={{ x: 4 }}

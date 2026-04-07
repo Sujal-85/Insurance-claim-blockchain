@@ -32,10 +32,14 @@ model User {
   passwordHash  String?   // Optional if wallet-only login
   walletAddress String?   @unique
   role          Role      @default(USER)
+  phoneNumber   String?
+  address       String?
+  avatar        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
   claims        Claim[]
+  userPolicies  UserPolicy[]
 }
 
 model Admin {
@@ -49,21 +53,40 @@ model Admin {
 model Policy {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   policyName    String
+  description   String?
+  category      String?   // Auto, Health, Property, etc.
   coverageAmount Float
+  premium       Float     @default(0)
   rules         Json      // Flexible rules structure
   active        Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
-  claims        Claim[]
+  userPolicies  UserPolicy[]
+}
+
+model UserPolicy {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String   @db.ObjectId
+  policy      Policy   @relation(fields: [policyId], references: [id])
+  policyId    String   @db.ObjectId
+  startDate   DateTime @default(now())
+  endDate     DateTime
+  premiumPaid Float
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  claims      Claim[]
 }
 
 model Claim {
   id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  user            User             @relation(fields: [userId], references: [id])
-  userId          String           @db.ObjectId
-  policy          Policy           @relation(fields: [policyId], references: [id])
-  policyId        String           @db.ObjectId
+  user            User?            @relation(fields: [userId], references: [id])
+  userId          String?          @db.ObjectId
+  userPolicy      UserPolicy?      @relation(fields: [userPolicyId], references: [id])
+  userPolicyId    String?          @db.ObjectId
   amount          Float
   description     String?
   incidentType    String?

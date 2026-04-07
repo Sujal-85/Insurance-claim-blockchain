@@ -57,9 +57,9 @@ export default function UserSignup() {
   return (
     <div className="min-h-screen bg-background flex relative overflow-hidden">
       {/* Left Panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-primary via-primary/90 to-secondary p-12 flex-col justify-between">
-        <div className="absolute inset-0 mesh-gradient opacity-30" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+      <div className="hidden lg:flex lg:w-1/2 relative bg-primary p-12 flex-col justify-between">
+        <div className="absolute inset-0 bg-background opacity-10" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
         
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3">
@@ -122,7 +122,7 @@ export default function UserSignup() {
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all ${
                       step >= s.number
-                        ? "bg-gradient-to-r from-primary to-secondary text-white"
+                        ? "bg-primary text-white"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -153,7 +153,7 @@ export default function UserSignup() {
                 <GlassCard className="mb-6 cursor-pointer group" hover>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Wallet className="h-6 w-6 text-primary" />
                       </div>
                       <div>
@@ -249,7 +249,7 @@ export default function UserSignup() {
                   <Button 
                     type="submit" 
                     disabled={isLoading}
-                    className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                    className="w-full h-12 bg-primary hover:bg-primary/90"
                   >
                     {isLoading ? "Creating Account..." : "Continue"}
                   </Button>
@@ -265,7 +265,7 @@ export default function UserSignup() {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 flex items-center justify-center mx-auto mb-6"
+                    className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-6"
                   >
                     <Check className="h-10 w-10 text-emerald-500" />
                   </motion.div>
@@ -275,7 +275,7 @@ export default function UserSignup() {
 
                 <GlassCard className="mb-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold">
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">
                       {formData.firstName[0]}{formData.lastName[0]}
                     </div>
                     <div>
@@ -286,7 +286,7 @@ export default function UserSignup() {
                 </GlassCard>
 
                 <Link to="/user/dashboard">
-                  <Button className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+                  <Button className="w-full h-12 bg-primary hover:bg-primary/90">
                     Go to Dashboard
                   </Button>
                 </Link>

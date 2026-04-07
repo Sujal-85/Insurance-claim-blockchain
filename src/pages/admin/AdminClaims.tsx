@@ -6,37 +6,36 @@ import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Search, Filter, Eye, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getContractReadOnly, getContractWithSigner } from "@/lib/ethereum";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 export default function AdminClaims() {
   const [claims, setClaims] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchClaims = async () => {
     try {
-      const contract = getContractReadOnly();
-      const count = await contract.claimCount();
-      const fetched = [];
-      for (let i = 1; i <= Number(count); i++) {
-        const claimData = await contract.claims(i);
-        let statusString = "pending";
-        if (claimData.processed && claimData.approved) statusString = "approved";
-        if (claimData.processed && !claimData.approved) statusString = "rejected";
+      setLoading(true);
+      const response = await api.get('/claims');
+      const backendClaims = response.data;
 
-        fetched.push({
-          id: claimData.claimId.toString(),
-          user: claimData.claimant,
-          type: "N/A", // policy type derived from policy could be added
-          amount: claimData.reason.substring(0, 20) + '...', // Mock amount with reason limits
-          risk: 10, // Default risk
-          status: statusString as any,
-          date: "On-Chain", // Timestamp omitted
-        });
-      }
-      setClaims(fetched);
+      const mappedClaims = backendClaims.map((claim: any) => ({
+        id: claim.id,
+        user: claim.user?.name || "Unknown User",
+        walletAddress: claim.user?.walletAddress || "N/A",
+        type: claim.userPolicy?.policy?.policyName || "N/A",
+        amount: `$${claim.amount.toLocaleString()}`,
+        risk: Math.round(claim.aiRiskScore || 10),
+        status: claim.status === 'ai_verified' ? 'processing' : claim.status.toLowerCase(),
+        date: new Date(claim.createdAt).toLocaleDateString(),
+      }));
+
+      setClaims(mappedClaims);
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to fetch claims from blockchain");
+      console.error("Error fetching admin claims:", err);
+      toast.error("Failed to fetch claims from server");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,22 +43,19 @@ export default function AdminClaims() {
     fetchClaims();
   }, []);
 
-  const handleProcessClaim = async (claimIdNum: bigint, isApprove: boolean) => {
+  const handleProcessClaim = async (claimId: string, isApprove: boolean) => {
     try {
-      const contract = await getContractWithSigner();
-      let tx;
-      if (isApprove) {
-        tx = await contract.approveClaim(claimIdNum);
-      } else {
-        tx = await contract.rejectClaim(claimIdNum);
-      }
-      toast.info("Processing transaction...");
-      await tx.wait();
+      const status = isApprove ? 'APPROVED' : 'REJECTED';
+      await api.post(`/claims/${claimId}/status`, { 
+        status,
+        reason: isApprove ? "Claim approved after review." : "Claim rejected due to insufficient evidence."
+      });
+      
       toast.success(`Claim ${isApprove ? 'approved' : 'rejected'} successfully`);
       fetchClaims();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.reason || err.message || "Failed to process claim");
+      toast.error(err.response?.data?.message || "Failed to process claim");
     }
   };
 
@@ -97,7 +93,14 @@ export default function AdminClaims() {
                   className="border-b border-border/50 hover:bg-muted/30"
                 >
                   <td className="py-4 px-4 font-medium">{claim.id}</td>
-                  <td className="py-4 px-4">{claim.user}</td>
+                  <td className="py-4 px-4">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-foreground">{claim.user}</span>
+                      <span className="text-xs text-muted-foreground truncate w-32" title={claim.walletAddress}>
+                        {claim.walletAddress}
+                      </span>
+                    </div>
+                  </td>
                   <td className="py-4 px-4">{claim.type}</td>
                   <td className="py-4 px-4 font-semibold">{claim.amount}</td>
                   <td className="py-4 px-4">
@@ -113,12 +116,12 @@ export default function AdminClaims() {
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button>
-                      {claim.status === "pending" && (
+                      {["pending", "processing"].includes(claim.status) && (
                         <>
-                          <Button variant="ghost" size="icon" className="text-success" onClick={() => handleProcessClaim(BigInt(claim.id), true)}>
+                          <Button variant="ghost" size="icon" className="text-success" onClick={() => handleProcessClaim(claim.id, true)}>
                             <CheckCircle className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleProcessClaim(BigInt(claim.id), false)}>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleProcessClaim(claim.id, false)}>
                             <XCircle className="h-4 w-4" />
                           </Button>
                         </>

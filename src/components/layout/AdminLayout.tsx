@@ -50,7 +50,7 @@ export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
               </Button>
               
               <div className="flex items-center gap-3 pl-4 border-l border-border">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-security to-primary flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                   <Shield className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -63,7 +63,7 @@ export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
         </header>
 
         {/* Content */}
-        <div className="p-8 mesh-gradient min-h-[calc(100vh-73px)]">
+        <div className="p-8 min-h-[calc(100vh-73px)]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

@@ -61,7 +61,7 @@ export default function Landing() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                 <Shield className="h-5 w-5 text-white" />
               </div>
               <span className="font-display font-bold text-xl">RealtyCheck</span>
@@ -84,7 +84,7 @@ export default function Landing() {
                 <Button variant="ghost">Sign In</Button>
               </Link>
               <Link to="/select-role">
-                <Button className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity">
+                <Button className="bg-primary hover:bg-primary/90 transition-opacity">
                   Get Started
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -130,7 +130,7 @@ export default function Landing() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
                 <Link to="/select-role">
-                  <Button size="lg" className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-lg px-8 h-14 rounded-xl">
+                  <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 h-14 rounded-xl">
                     Start Your Claim
                     <ChevronRight className="ml-2 h-5 w-5" />
                   </Button>
@@ -271,7 +271,7 @@ export default function Landing() {
                   <span className="text-6xl font-display font-bold text-primary/10 absolute top-4 left-4">
                     {item.step}
                   </span>
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
                     <item.icon className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
@@ -337,10 +337,10 @@ export default function Landing() {
               className="relative"
             >
               <GlassCard variant="glow" className="p-8">
-                <div className="absolute -top-6 -right-6 w-32 h-32 bg-gradient-to-br from-primary/30 to-secondary/30 rounded-full blur-3xl" />
+                <div className="absolute -top-6 -right-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
                 <div className="relative">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-security flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
                       <Globe className="h-6 w-6 text-white" />
                     </div>
                     <div>
@@ -369,8 +369,8 @@ export default function Landing() {
 
       {/* CTA Section */}
       <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary opacity-90" />
-        <div className="absolute inset-0 mesh-gradient opacity-30" />
+        <div className="absolute inset-0 bg-primary" />
+        <div className="absolute inset-0 bg-background opacity-30" />
         
         <div className="container mx-auto px-6 relative z-10">
           <motion.div
@@ -405,7 +405,7 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <Shield className="h-4 w-4 text-white" />
               </div>
               <span className="font-display font-bold">RealtyCheck</span>

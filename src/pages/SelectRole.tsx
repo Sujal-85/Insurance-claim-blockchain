@@ -26,7 +26,7 @@ export default function SelectRole() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-6">
+          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-6">
             <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-4xl font-display font-bold mb-4">
@@ -49,10 +49,10 @@ export default function SelectRole() {
                 variant="elevated"
                 className="h-full cursor-pointer group relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-2xl transition-all duration-500 group-hover:scale-150" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150" />
                 
                 <div className="relative z-10">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                     <User className="h-8 w-8 text-primary" />
                   </div>
                   
@@ -78,7 +78,7 @@ export default function SelectRole() {
                     </div>
                   </div>
 
-                  <Button className="w-full bg-gradient-to-r from-primary to-primary/80 hover:opacity-90">
+                  <Button className="w-full bg-primary hover:bg-primary/90">
                     Continue as User
                   </Button>
                 </div>
@@ -97,7 +97,7 @@ export default function SelectRole() {
                 variant="elevated"
                 className="h-full cursor-pointer group relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-security/10 to-transparent rounded-full blur-2xl transition-all duration-500 group-hover:scale-150" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-security/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150" />
                 
                 {/* Restricted Access Banner */}
                 <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-warning/10 border border-warning/20">
@@ -105,7 +105,7 @@ export default function SelectRole() {
                 </div>
 
                 <div className="relative z-10">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-security/20 to-security/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <div className="w-16 h-16 rounded-2xl bg-security/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                     <ShieldCheck className="h-8 w-8 text-security" />
                   </div>
                   
@@ -131,7 +131,7 @@ export default function SelectRole() {
                     </div>
                   </div>
 
-                  <Button className="w-full bg-gradient-to-r from-security to-security/80 hover:opacity-90">
+                  <Button className="w-full bg-security hover:bg-security/90">
                     Continue as Admin
                   </Button>
                 </div>

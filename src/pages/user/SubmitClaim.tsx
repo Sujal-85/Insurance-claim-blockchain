@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getContractWithSigner, getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
+import api from "@/lib/api";
 import { toast } from "sonner";
+import { ethers } from "ethers";
+import SecureChainABI from "@/lib/SecureChain.json";
 import {
   Upload,
   FileText,
@@ -24,6 +26,7 @@ import {
   File,
   Shield,
   Sparkles,
+  Wallet,
 } from "lucide-react";
 
 const steps = [
@@ -36,8 +39,9 @@ const steps = [
 export default function SubmitClaim() {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
-  const [policies, setPolicies] = useState<any[]>([]);
+  const [userPolicies, setUserPolicies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPolicyLoading, setIsPolicyLoading] = useState(true);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -50,30 +54,18 @@ export default function SubmitClaim() {
   });
 
   useEffect(() => {
-    const fetchPolicies = async () => {
+    const fetchUserPolicies = async () => {
       try {
-        const address = await getSignerAddress();
-        const contract = getContractReadOnly();
-        const policyCount = await contract.policyCount();
-        const policiesArr = [];
-        for (let i = 1; i <= Number(policyCount); i++) {
-          const policy = await contract.policies(i);
-          // Only fetch policies belonging to the current user (connected address)
-          if (policy.active && policy.holder.toLowerCase() === address.toLowerCase()) {
-            policiesArr.push({
-              id: policy.policyId.toString(),
-              policyName: `Policy #${policy.policyId.toString()}`, // Default name
-              coverageAmount: Number(policy.coverage),
-            });
-          }
-        }
-        setPolicies(policiesArr);
+        const response = await api.get('/policies/user/my-policies');
+        setUserPolicies(response.data);
       } catch (error) {
-        console.error("Failed to fetch policies from blockchain", error);
-        toast.error("Failed to load policies");
+        console.error("Error fetching user policies:", error);
+        toast.error("Failed to load your policies");
+      } finally {
+        setIsPolicyLoading(false);
       }
     };
-    fetchPolicies();
+    fetchUserPolicies();
   }, []);
 
   const addFile = () => {
@@ -86,27 +78,85 @@ export default function SubmitClaim() {
 
   const handleSubmit = async () => {
     setIsLoading(true);
+    let txHash = "";
+
     try {
-      const contract = await getContractWithSigner();
-      const reason = `${formData.incidentType}: ${formData.description}`;
-      const policyIdNum = BigInt(formData.policyId);
-      const tx = await contract.submitClaim(policyIdNum, reason);
-      toast.info("Transaction submitted, waiting for confirmation...");
-      await tx.wait(); // Wait for confirmation
-      
-      toast.success("Claim submitted successfully and recorded on blockchain!");
-      navigate('/user/claims');
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const signer = await provider.getSigner();
+          const userAddress = await signer.getAddress();
+          console.log("Using wallet address:", userAddress);
+
+          const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+          const contract = new ethers.Contract(contractAddress, (SecureChainABI as any).abi, signer);
+
+          toast.info("Please confirm the transaction in MetaMask...");
+          
+          const blockchainClaimId = `CLAIM-${Date.now()}`;
+          const amountInWei = ethers.parseEther(formData.amount.toString() || "0");
+
+          const tx = await contract.submitClaim(
+            blockchainClaimId,
+            formData.policyId,
+            amountInWei
+          );
+
+          toast.info("Transaction submitted. Waiting for confirmation...");
+          const receipt = await tx.wait();
+          txHash = receipt.hash;
+          toast.success("Blockchain transaction confirmed!");
+        } catch (blockchainError: any) {
+          console.error("Blockchain detailed error:", blockchainError);
+          const errorMessage = blockchainError.reason || blockchainError.message || "Unknown blockchain error";
+          
+          if (blockchainError.code === 4001 || errorMessage.toLowerCase().includes("rejected")) {
+            toast.error("Transaction was rejected in MetaMask.");
+            setIsLoading(false);
+            return;
+          }
+          
+          toast.info(`Blockchain verification failed: ${errorMessage}. Continuing with database submission...`);
+        }
+      } else {
+        toast.info("MetaMask not found. Claim will only be recorded in the database.");
+      }
+
+      const payload = {
+        policyId: formData.policyId,
+        amount: Number(formData.amount),
+        description: String(formData.description || "No description"),
+        incidentType: String(formData.incidentType || "accident"),
+        incidentDate: formData.incidentDate ? new Date(formData.incidentDate).toISOString() : new Date().toISOString(),
+        location: String(formData.location || "Unknown"),
+        blockchainTxHash: txHash || undefined
+      };
+
+      console.log("Submitting claim to backend with payload:", JSON.stringify(payload, null, 2));
+
+      try {
+        const response = await api.post('/claims', payload);
+        console.log("Backend response:", response.data);
+        toast.success("Claim submitted successfully!");
+        setCurrentStep(4);
+      } catch (error: any) {
+        console.error("FULL ERROR OBJECT:", error);
+        const backendMessage = error.response?.data?.message;
+        const displayMessage = Array.isArray(backendMessage) ? backendMessage.join(", ") : backendMessage;
+        toast.error(displayMessage || "Failed to submit claim. Please check your data.");
+      }
     } catch (error: any) {
-      console.error(error);
-      toast.error(error.reason || error.message || "Failed to submit claim on blockchain");
+      console.error("Error in handleSubmit:", error);
+      toast.error("An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const selectedPolicy = userPolicies.find(up => up.policy.id === formData.policyId);
+
   return (
     <UserLayout title="Submit New Claim" subtitle="File a new insurance claim with blockchain verification">
-      {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
           {steps.map((step, index) => (
@@ -115,7 +165,7 @@ export default function SubmitClaim() {
                 <motion.div
                   className={`w-12 h-12 rounded-full flex items-center justify-center font-medium transition-all ${
                     currentStep >= step.number
-                      ? "bg-gradient-to-r from-primary to-secondary text-white"
+                      ? "bg-primary text-white"
                       : "bg-muted text-muted-foreground"
                   }`}
                   animate={{ scale: currentStep === step.number ? 1.1 : 1 }}
@@ -137,7 +187,6 @@ export default function SubmitClaim() {
 
       <div className="max-w-3xl mx-auto">
         <AnimatePresence mode="wait">
-          {/* Step 1: Policy Selection */}
           {currentStep === 1 && (
             <motion.div
               key="step1"
@@ -147,46 +196,49 @@ export default function SubmitClaim() {
             >
               <GlassCard variant="elevated">
                 <h2 className="text-xl font-display font-semibold mb-6">Select Policy</h2>
-                
-                <div className="space-y-4">
-                  {policies.map((policy) => (
-                    <label
-                      key={policy.id}
-                      className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer bg-muted/30 ${
-                        formData.policyId === policy.id
-                          ? "border-primary bg-primary/5"
-                          : "border-transparent hover:border-primary/30"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="policy"
-                        className="sr-only"
-                        checked={formData.policyId === policy.id}
-                        onChange={() => setFormData({ ...formData, policyId: policy.id })}
-                      />
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <Shield className="h-6 w-6 text-primary" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {isPolicyLoading ? (
+                    <div className="col-span-2 text-center py-10">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-sm text-muted-foreground mt-2">Loading your policies...</p>
+                    </div>
+                  ) : userPolicies.length > 0 ? (
+                    userPolicies.map((up) => (
+                      <div
+                        key={up.id}
+                        onClick={() => setFormData({ ...formData, policyId: up.policy.id })}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          formData.policyId === up.policy.id
+                            ? "border-primary bg-primary/5 shadow-md"
+                            : "border-border hover:border-primary/30 bg-card"
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold">{up.policy.policyName}</h4>
+                          {formData.policyId === up.policy.id && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{up.policy.category} • ID: {up.policy.id}</p>
+                        <div className="flex justify-between text-xs font-medium">
+                          <span>Max Coverage</span>
+                          <span>${up.policy.coverageAmount.toLocaleString()}</span>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium">{policy.policyName}</p>
-                        <p className="text-sm text-muted-foreground">{policy.id}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">${policy.coverageAmount}</p>
-                        <p className="text-xs text-muted-foreground">Max Coverage</p>
-                      </div>
-                    </label>
-                  ))}
-                  {policies.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">No active policies found.</p>
+                    ))
+                  ) : (
+                    <div className="col-span-2 text-center py-10 bg-muted/20 rounded-xl border-2 border-dashed border-muted">
+                      <p className="text-sm text-muted-foreground">No active policies found.</p>
+                      <Link to="/user/policies" className="text-primary text-sm font-medium hover:underline mt-2 inline-block">
+                        Purchase a policy first
+                      </Link>
+                    </div>
                   )}
                 </div>
               </GlassCard>
             </motion.div>
           )}
 
-          {/* Step 2: Claim Details */}
           {currentStep === 2 && (
             <motion.div
               key="step2"
@@ -196,25 +248,24 @@ export default function SubmitClaim() {
             >
               <GlassCard variant="elevated">
                 <h2 className="text-xl font-display font-semibold mb-6">Claim Details</h2>
-                
                 <div className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Incident Type</Label>
-                        <Select 
-                          value={formData.incidentType} 
-                          onValueChange={(value) => setFormData({ ...formData, incidentType: value })}
-                        >
-                          <SelectTrigger className="h-12 bg-muted/50">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="accident">Vehicle Accident</SelectItem>
-                            <SelectItem value="theft">Theft</SelectItem>
-                            <SelectItem value="damage">Property Damage</SelectItem>
-                            <SelectItem value="medical">Medical Emergency</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <Select 
+                        value={formData.incidentType} 
+                        onValueChange={(value) => setFormData({ ...formData, incidentType: value })}
+                      >
+                        <SelectTrigger className="h-12 bg-muted/50">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="accident">Vehicle Accident</SelectItem>
+                          <SelectItem value="theft">Theft</SelectItem>
+                          <SelectItem value="damage">Property Damage</SelectItem>
+                          <SelectItem value="medical">Medical Emergency</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Incident Date</Label>
@@ -234,13 +285,13 @@ export default function SubmitClaim() {
                     <Label>Claim Amount</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input 
-                          type="number" 
-                          placeholder="Enter amount" 
-                          className="pl-10 h-12 bg-muted/50" 
-                          value={formData.amount || ''}
-                          onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
-                        />
+                      <Input 
+                        type="number" 
+                        placeholder="Enter amount" 
+                        className="pl-10 h-12 bg-muted/50" 
+                        value={formData.amount || ''}
+                        onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
+                      />
                     </div>
                   </div>
 
@@ -268,7 +319,6 @@ export default function SubmitClaim() {
             </motion.div>
           )}
 
-          {/* Step 3: Documentation */}
           {currentStep === 3 && (
             <motion.div
               key="step3"
@@ -278,8 +328,6 @@ export default function SubmitClaim() {
             >
               <GlassCard variant="elevated">
                 <h2 className="text-xl font-display font-semibold mb-6">Upload Documentation</h2>
-                
-                {/* Upload Zone */}
                 <div
                   onClick={addFile}
                   className="border-2 border-dashed border-primary/30 rounded-2xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all mb-6"
@@ -288,15 +336,10 @@ export default function SubmitClaim() {
                     <Upload className="h-8 w-8 text-primary" />
                   </div>
                   <h3 className="font-semibold mb-2">Drag & Drop Files</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    or click to browse your files
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Supported formats: PDF, JPG, PNG • Max 10MB per file
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">or click to browse your files</p>
+                  <p className="text-xs text-muted-foreground">Supported formats: PDF, JPG, PNG • Max 10MB per file</p>
                 </div>
 
-                {/* Uploaded Files */}
                 {uploadedFiles.length > 0 && (
                   <div className="space-y-3">
                     <p className="text-sm font-medium text-muted-foreground">Uploaded Files ({uploadedFiles.length})</p>
@@ -309,11 +352,7 @@ export default function SubmitClaim() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            {file.endsWith('.pdf') ? (
-                              <File className="h-5 w-5 text-primary" />
-                            ) : (
-                              <Image className="h-5 w-5 text-primary" />
-                            )}
+                            {file.endsWith('.pdf') ? <File className="h-5 w-5 text-primary" /> : <Image className="h-5 w-5 text-primary" />}
                           </div>
                           <div>
                             <p className="font-medium text-sm">{file}</p>
@@ -356,7 +395,6 @@ export default function SubmitClaim() {
             </motion.div>
           )}
 
-          {/* Step 4: Review & Submit */}
           {currentStep === 4 && (
             <motion.div
               key="step4"
@@ -366,40 +404,33 @@ export default function SubmitClaim() {
             >
               <GlassCard variant="elevated">
                 <h2 className="text-xl font-display font-semibold mb-6">Review Your Claim</h2>
-
                 <div className="space-y-6">
-                  {/* Summary Cards */}
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-muted/30">
                       <p className="text-sm text-muted-foreground mb-1">Policy</p>
-                      <p className="font-medium">Comprehensive Auto Insurance</p>
-                      <p className="text-xs text-muted-foreground">POL-AUTO-2024</p>
+                      <p className="font-medium">{selectedPolicy?.policy.policyName || "N/A"}</p>
+                      <p className="text-xs text-muted-foreground">{formData.policyId}</p>
                     </div>
                     <div className="p-4 rounded-xl bg-muted/30">
                       <p className="text-sm text-muted-foreground mb-1">Claim Amount</p>
-                      <p className="font-medium text-xl">$2,500.00</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-muted/30">
-                      <p className="text-sm text-muted-foreground mb-1">Incident Type</p>
-                      <p className="font-medium">Vehicle Accident</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-muted/30">
-                      <p className="text-sm text-muted-foreground mb-1">Incident Date</p>
-                      <p className="font-medium">January 15, 2024</p>
+                      <p className="font-medium text-xl">${formData.amount.toLocaleString()}</p>
                     </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-muted/30">
-                    <p className="text-sm text-muted-foreground mb-1">Description</p>
-                    <p className="font-medium">
-                      {formData.description || "No description provided."}
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-2">Incident Details</p>
+                    <div className="space-y-2">
+                      <p className="text-sm"><span className="text-muted-foreground">Type:</span> {formData.incidentType}</p>
+                      <p className="text-sm"><span className="text-muted-foreground">Date:</span> {formData.incidentDate}</p>
+                      <p className="text-sm"><span className="text-muted-foreground">Location:</span> {formData.location}</p>
+                      <p className="text-sm line-clamp-2"><span className="text-muted-foreground">Description:</span> {formData.description}</p>
+                    </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-muted/30">
-                    <p className="text-sm text-muted-foreground mb-2">Attached Documents ({uploadedFiles.length || 3})</p>
+                    <p className="text-sm text-muted-foreground mb-2">Attached Documents ({uploadedFiles.length})</p>
                     <div className="flex flex-wrap gap-2">
-                      {(uploadedFiles.length ? uploadedFiles : ["police-report.pdf", "damage-photo-1.jpg", "damage-photo-2.jpg"]).map((file, i) => (
+                      {uploadedFiles.map((file, i) => (
                         <span key={i} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm">
                           {file}
                         </span>
@@ -407,17 +438,15 @@ export default function SubmitClaim() {
                     </div>
                   </div>
 
-                  {/* AI Verification Notice */}
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
                         <Sparkles className="h-5 w-5 text-white" />
                       </div>
                       <div>
                         <p className="font-medium">AI-Powered Verification</p>
                         <p className="text-sm text-muted-foreground">
-                          Your claim will be instantly verified using our AI system and recorded 
-                          on the blockchain for transparent processing.
+                          Your claim will be instantly verified using our AI system and recorded on the blockchain for transparent processing.
                         </p>
                       </div>
                     </div>
@@ -428,12 +457,11 @@ export default function SubmitClaim() {
           )}
         </AnimatePresence>
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between mt-8">
+        <div className="flex justify-between mt-8">
           <Button
             variant="outline"
             onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-            disabled={currentStep === 1}
+            disabled={currentStep === 1 || isLoading}
           >
             <ChevronLeft className="mr-2 h-4 w-4" />
             Previous
@@ -442,14 +470,15 @@ export default function SubmitClaim() {
           {currentStep < 4 ? (
             <Button
               onClick={() => setCurrentStep(Math.min(4, currentStep + 1))}
-              className="bg-gradient-to-r from-primary to-secondary"
+              disabled={currentStep === 1 && !formData.policyId}
+              className="bg-primary hover:bg-primary/90"
             >
               Continue
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
             <Button 
-              className="bg-gradient-to-r from-primary to-secondary" 
+              className="bg-primary hover:bg-primary/90" 
               onClick={handleSubmit}
               disabled={isLoading || !formData.policyId}
             >

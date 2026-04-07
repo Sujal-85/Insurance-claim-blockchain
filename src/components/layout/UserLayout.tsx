@@ -49,7 +49,7 @@ export function UserLayout({ children, title, subtitle }: UserLayoutProps) {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
               </Button>
               
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-medium">
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-medium">
                 JD
               </div>
             </div>
@@ -57,7 +57,7 @@ export function UserLayout({ children, title, subtitle }: UserLayoutProps) {
         </header>
 
         {/* Content */}
-        <div className="px-8 pb-8 pt-4 mesh-gradient min-h-[calc(100vh-73px)]">
+        <div className="px-8 pb-8 pt-4 min-h-[calc(100vh-73px)]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

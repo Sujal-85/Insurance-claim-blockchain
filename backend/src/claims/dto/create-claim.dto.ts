@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateClaimDto {
   @IsString()
@@ -24,4 +24,8 @@ export class CreateClaimDto {
   @IsString()
   @IsNotEmpty()
   location: string;
+
+  @IsString()
+  @IsOptional()
+  blockchainTxHash?: string;
 }

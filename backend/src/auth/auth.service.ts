@@ -45,16 +45,48 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  async adminLogin(data: any) {
-    const admin = await this.prisma.admin.findUnique({
-      where: { email: data.email },
+  async adminLogin(email: string, password: string) {
+    const admin = await this.prisma.admin.findUnique({ where: { email } });
+    if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    
+    // Generate a real JWT token for admin
+    return {
+      ...this.generateToken(admin),
+      role: 'ADMIN',
+    };
+  }
+
+  async getUserProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        _count: {
+          select: {
+            userPolicies: true,
+            claims: true,
+          } as any
+        }
+      } as any
     });
 
-    if (!admin || !admin.passwordHash || !(await bcrypt.compare(data.password, admin.passwordHash))) {
-      throw new UnauthorizedException('Invalid admin credentials');
+    if (!user) {
+      throw new UnauthorizedException('User find failed');
     }
 
-    return this.generateToken(admin);
+    // Calculate approval rate
+    const approvedClaims = await this.prisma.claim.count({
+      where: { userId, status: 'APPROVED' }
+    });
+
+    const userAny = user as any;
+    return {
+      ...user,
+      activePolicies: userAny._count?.userPolicies || 0,
+      totalClaims: userAny._count?.claims || 0,
+      approvalRate: userAny._count?.claims > 0 ? Math.round((approvedClaims / userAny._count.claims) * 100) : 0
+    };
   }
 
   private generateToken(user: any) {

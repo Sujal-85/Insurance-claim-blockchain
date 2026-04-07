@@ -1,7 +1,7 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request, InternalServerErrorException } from '@nestjs/common';
 import { ClaimsService } from './claims.service';
 import { CreateClaimDto } from './dto/create-claim.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Assume we create this
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('claims')
@@ -9,12 +9,20 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 export class ClaimsController {
   constructor(private readonly claimsService: ClaimsService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post()
   @ApiOperation({ summary: 'Submit a new insurance claim' })
-  async create(@Body() createClaimDto: CreateClaimDto) {
-    // For now, using a mock userId until JWT guard is fully wired
-    const mockUserId = "69afa83e19c9f31b2548a8cb"; // The test user id from seeding
-    return this.claimsService.create(mockUserId, createClaimDto);
+  async create(@Body() createClaimDto: CreateClaimDto, @Request() req: any) {
+    try {
+      console.log('Received claim submission for user:', req.user.userId);
+      console.log('DTO:', createClaimDto);
+      return await this.claimsService.create(req.user.userId, createClaimDto);
+    } catch (error) {
+      console.error('Error in ClaimsController.create:', error);
+      if (error.status) throw error;
+      throw new InternalServerErrorException(error.message);
+    }
   }
 
   @Get()
@@ -23,11 +31,18 @@ export class ClaimsController {
     return this.claimsService.findAll();
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get claims statistics (Analytics)' })
+  async getStats() {
+    return this.claimsService.getStats();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('my-claims')
   @ApiOperation({ summary: 'Get claims for the logged-in user' })
-  async findUserClaims() {
-    const mockUserId = "69afa83e19c9f31b2548a8cb";
-    return this.claimsService.findUserClaims(mockUserId);
+  async findUserClaims(@Request() req: any) {
+    return this.claimsService.findUserClaims(req.user.userId);
   }
 
   @Post(':id/status')

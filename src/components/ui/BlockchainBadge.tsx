@@ -12,17 +12,17 @@ const badgeConfig = {
   verified: {
     icon: Shield,
     label: "Blockchain Verified",
-    gradient: "from-primary to-secondary",
+    gradient: "bg-primary",
   },
   secured: {
     icon: Lock,
     label: "Secured on Chain",
-    gradient: "from-security to-primary",
+    gradient: "bg-security",
   },
   linked: {
     icon: Link,
     label: "On-Chain Record",
-    gradient: "from-secondary to-trust",
+    gradient: "bg-secondary",
   },
 };
 
@@ -37,7 +37,7 @@ export function BlockchainBadge({ type = "verified", label, className }: Blockch
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
         "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium",
-        "bg-gradient-to-r text-white shadow-md",
+        "text-white shadow-md",
         config.gradient,
         className
       )}

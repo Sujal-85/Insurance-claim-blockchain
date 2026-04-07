@@ -122,7 +122,7 @@ export default function ClaimDetails() {
           {/* AI Analysis */}
           <GlassCard variant="glow" className="border-primary/20">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
                 <Sparkles className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
@@ -236,7 +236,7 @@ export default function ClaimDetails() {
           {/* Blockchain Record */}
           <GlassCard variant="elevated" className="border-primary/20">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                 <Shield className="h-5 w-5 text-white" />
               </div>
               <div>

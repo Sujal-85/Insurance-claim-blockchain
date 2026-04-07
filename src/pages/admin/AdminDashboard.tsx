@@ -14,44 +14,47 @@ import {
   DollarSign,
   ArrowRight,
 } from "lucide-react";
-
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { getContractReadOnly } from "@/lib/ethereum";
+import api from "@/lib/api";
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ totalClaims: 0, pendingReview: 0, approvedToday: 0 });
+  const [stats, setStats] = useState({ totalClaims: 0, pendingReview: 0, approvedToday: 0, totalPayouts: 0 });
   const [recentClaims, setRecentClaims] = useState<any[]>([]);
 
   const fetchData = async () => {
     try {
-      const contract = getContractReadOnly();
-      const count = await contract.claimCount();
-      let pending = 0, approved = 0;
-      const fetchedClaims = [];
-
-      for (let i = 1; i <= Number(count); i++) {
-        const claim = await contract.claims(i);
-        if (!claim.processed) pending++;
-        if (claim.approved) approved++;
-
-        fetchedClaims.push({
-          id: claim.claimId.toString(),
-          user: claim.claimant,
-          amount: claim.reason.substring(0, 15) + "...", // Used reason as amount replacement in UI since there's no amount
-          risk: "low", // Dummy risk
-          status: claim.processed ? (claim.approved ? "approved" : "rejected") : "pending",
-        });
-      }
-
+      // Fetch stats from backend API
+      const statsResponse = await api.get('/claims/stats');
+      const backendStats = statsResponse.data;
+      
       setStats({
-        totalClaims: Number(count),
-        pendingReview: pending,
-        approvedToday: approved
+        totalClaims: backendStats.totalClaims || 0,
+        pendingReview: backendStats.pendingReview || 0,
+        approvedToday: backendStats.approvedClaims || 0,
+        totalPayouts: backendStats.totalPayouts || 0
       });
-      // Sort to get recent
-      setRecentClaims(fetchedClaims.reverse().slice(0, 4));
-    } catch (err) {
-      console.error(err);
+
+      // Fetch recent claims from backend API - show pending/ai_verified first
+      const claimsResponse = await api.get('/claims');
+      const pendingClaims = claimsResponse.data
+        .filter((c: any) => ['PENDING', 'AI_VERIFIED'].includes(c.status))
+        .slice(0, 4);
+
+      const mappedClaims = pendingClaims.map((claim: any) => ({
+        id: claim.id,
+        user: claim.user?.name || claim.user?.email || "Unknown User",
+        userAddress: claim.user?.walletAddress || "N/A",
+        amount: `$${(claim.amount || 0).toLocaleString()}`,
+        risk: Math.round(claim.aiRiskScore || 10),
+        status: claim.status === 'AI_VERIFIED' ? 'processing' : claim.status.toLowerCase(),
+        date: new Date(claim.createdAt).toLocaleDateString()
+      }));
+
+      setRecentClaims(mappedClaims);
+    } catch (err: any) {
+      console.error("Admin dashboard fetch error:", err);
+      toast.error("Failed to load dashboard data: " + (err.message || "Unknown error"));
     }
   };
 
@@ -66,7 +69,7 @@ export default function AdminDashboard() {
         <StatsCard title="Total Claims" value={stats.totalClaims.toString()} icon={FileStack} change={{ value: 12, trend: "up" }} />
         <StatsCard title="Pending Review" value={stats.pendingReview.toString()} icon={Clock} iconColor="bg-warning/10 text-warning" />
         <StatsCard title="Approved Contracts" value={stats.approvedToday.toString()} icon={CheckCircle} iconColor="bg-success/10 text-success" />
-        <StatsCard title="Total Payouts" value="N/A" icon={DollarSign} change={{ value: 8, trend: "up" }} />
+        <StatsCard title="Total Payouts" value={`$${stats.totalPayouts.toLocaleString()}`} icon={DollarSign} change={{ value: 8, trend: "up" }} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -100,11 +103,11 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      claim.risk === "high" ? "bg-destructive/10 text-destructive" :
-                      claim.risk === "medium" ? "bg-warning/10 text-warning" :
+                      claim.risk >= 70 ? "bg-destructive/10 text-destructive" :
+                      claim.risk >= 40 ? "bg-warning/10 text-warning" :
                       "bg-success/10 text-success"
                     }`}>
-                      {claim.risk} risk
+                      {claim.risk}/100 risk
                     </span>
                     <p className="font-semibold w-24 text-right truncate" title={claim.amount}>{claim.amount}</p>
                     <StatusBadge status={claim.status} size="sm" />

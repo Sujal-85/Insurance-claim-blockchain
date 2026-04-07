@@ -37,9 +37,9 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen bg-background flex relative overflow-hidden">
       {/* Left Panel - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-sidebar via-sidebar/90 to-security/80 p-12 flex-col justify-between">
-        <div className="absolute inset-0 mesh-gradient opacity-20" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-security/20 rounded-full blur-3xl" />
+      <div className="hidden lg:flex lg:w-1/2 relative bg-sidebar p-12 flex-col justify-between">
+        <div className="absolute inset-0 bg-background opacity-10" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-security/10 rounded-full blur-3xl" />
         
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3">
@@ -98,7 +98,7 @@ export default function AdminLogin() {
               <>
                 <div className="mb-8">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-security/20 to-primary/20 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-security/20 flex items-center justify-center">
                       <Shield className="h-6 w-6 text-security" />
                     </div>
                     <div>
@@ -160,9 +160,9 @@ export default function AdminLogin() {
                   </div>
 
                   <Button 
-                    type="submit" 
-                    className="w-full h-12 bg-gradient-to-r from-security to-primary hover:opacity-90 mt-2"
+                    type="submit"
                     disabled={isLoading}
+                    className="w-full h-12 bg-security hover:bg-security/90 mt-2"
                   >
                     {isLoading ? "Signing in..." : "Continue to Verification"}
                   </Button>
@@ -172,7 +172,7 @@ export default function AdminLogin() {
               <>
                 <div className="mb-8">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-success/20 to-primary/20 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
                       <Key className="h-6 w-6 text-success" />
                     </div>
                     <div>
@@ -203,7 +203,7 @@ export default function AdminLogin() {
                   </div>
 
                   <Link to="/admin/dashboard">
-                    <Button className="w-full h-12 bg-gradient-to-r from-security to-primary hover:opacity-90 mt-4">
+                    <Button className="w-full h-12 bg-security hover:bg-security/90 mt-4">
                       Verify & Sign In
                     </Button>
                   </Link>

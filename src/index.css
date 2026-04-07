@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -54,11 +54,11 @@
     --glass-shadow: 215 25% 12% / 0.08;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(210, 100%, 45%), hsl(175, 60%, 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(215, 90%, 20%), hsl(210, 100%, 35%), hsl(175, 60%, 40%));
-    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%), hsl(210, 25%, 97%));
-    --gradient-glass: linear-gradient(135deg, hsl(0, 0%, 100%, 0.9), hsl(0, 0%, 100%, 0.6));
-    --gradient-blockchain: linear-gradient(135deg, hsl(210, 100%, 50%), hsl(260, 60%, 55%), hsl(175, 65%, 45%));
+    --gradient-primary: hsl(210, 100%, 45%);
+    --gradient-hero: hsl(215, 90%, 20%);
+    --gradient-card: hsl(0, 0%, 100%);
+    --gradient-glass: hsl(0, 0%, 100%, 0.9);
+    --gradient-blockchain: hsl(210, 100%, 50%);
 
     /* Shadows */
     --shadow-sm: 0 2px 8px -2px hsl(var(--glass-shadow));
@@ -175,7 +175,7 @@
 
   .trust-badge {
     @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
-    background: linear-gradient(135deg, hsl(var(--success) / 0.15), hsl(var(--trust) / 0.15));
+    background: hsl(var(--success) / 0.1);
     color: hsl(var(--success));
     border: 1px solid hsl(var(--success) / 0.2);
   }
@@ -221,11 +221,6 @@
   }
 
   .mesh-gradient {
-    background: 
-      radial-gradient(at 40% 20%, hsl(210, 100%, 50%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, hsl(175, 60%, 45%, 0.1) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, hsl(260, 60%, 55%, 0.1) 0px, transparent 50%),
-      radial-gradient(at 80% 50%, hsl(210, 100%, 45%, 0.08) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsl(175, 65%, 45%, 0.12) 0px, transparent 50%);
+    @apply bg-background;
   }
 }
