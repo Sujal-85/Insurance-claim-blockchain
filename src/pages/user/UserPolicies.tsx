@@ -1,173 +1,226 @@
 import { UserLayout } from "@/components/layout/UserLayout";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { BlockchainBadge } from "@/components/ui/BlockchainBadge";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import {
-  Shield,
-  Calendar,
-  DollarSign,
-  FileText,
-  Check,
-  AlertTriangle,
-  ChevronRight,
-  Download,
+import { 
+  Shield, 
+  Filter, 
+  CheckCircle2, 
+  Clock, 
+  ArrowRight,
+  Briefcase
 } from "lucide-react";
-
-const policies = [
-  {
-    id: "POL-AUTO-2024",
-    name: "Comprehensive Auto Insurance",
-    type: "Auto",
-    coverage: "$50,000",
-    premium: "$125/month",
-    startDate: "Jan 1, 2024",
-    endDate: "Dec 31, 2024",
-    status: "active",
-    features: ["Collision Coverage", "Liability Protection", "Medical Payments", "Roadside Assistance"],
-  },
-  {
-    id: "POL-HEALTH-2024",
-    name: "Premium Health Coverage",
-    type: "Health",
-    coverage: "$100,000",
-    premium: "$350/month",
-    startDate: "Mar 1, 2024",
-    endDate: "Feb 28, 2025",
-    status: "active",
-    features: ["Hospital Care", "Prescription Drugs", "Mental Health", "Preventive Care"],
-  },
-  {
-    id: "POL-PROP-2024",
-    name: "Home & Property Insurance",
-    type: "Property",
-    coverage: "$250,000",
-    premium: "$200/month",
-    startDate: "Jun 15, 2024",
-    endDate: "Jun 14, 2025",
-    status: "active",
-    features: ["Dwelling Coverage", "Personal Property", "Liability Protection", "Natural Disasters"],
-  },
-];
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import { getSignerAddress } from "@/lib/ethereum";
 
 export default function UserPolicies() {
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [myPolicies, setMyPolicies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"available" | "my">("available");
+
+  const fetchData = async () => {
+    try {
+      const [allRes, myRes] = await Promise.all([
+        api.get('/policies'),
+        api.get('/policies/user/my-policies')
+      ]);
+      setPolicies(allRes.data);
+      setMyPolicies(myRes.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load policies");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handlePurchase = async (policyId: string) => {
+    try {
+      // Ensure wallet is connected for blockchain authentication
+      const address = await getSignerAddress();
+      if (!address) {
+        toast.error("Please connect your Web3 wallet to purchase a policy.");
+        return;
+      }
+
+      const message = `I authorize the purchase of policy ${policyId} at ${new Date().toISOString()}`;
+      const { signMessage } = await import("@/lib/ethereum");
+      const signature = await signMessage(message);
+
+      await api.post(`/policies/${policyId}/purchase`, { 
+        walletAddress: address,
+        signature,
+        message
+      });
+      toast.success("Policy purchased and secured on blockchain!");
+      fetchData();
+      setActiveTab("my");
+    } catch (error) {
+      console.error("Purchase error:", error);
+      toast.error("Failed to purchase policy. Check your wallet connection.");
+    }
+  };
+
   return (
-    <UserLayout title="My Policies" subtitle="View and manage your insurance policies">
-      <div className="space-y-6">
-        {policies.map((policy, index) => (
-          <motion.div
-            key={policy.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <GlassCard variant="elevated" className="overflow-hidden">
-              <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                {/* Policy Header */}
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                        <Shield className="h-7 w-7 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-display font-semibold">{policy.name}</h3>
-                        <p className="text-sm text-muted-foreground">{policy.id}</p>
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-success/10 text-success text-sm font-medium capitalize">
-                      {policy.status}
-                    </span>
-                  </div>
+    <UserLayout title="Insurance Policies" subtitle="Explore and manage your blockchain-backed coverage">
+      <div className="flex gap-4 mb-8 bg-muted/30 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab("available")}
+          className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            activeTab === "available" 
+              ? "bg-white text-primary shadow-sm" 
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Available Policies
+        </button>
+        <button
+          onClick={() => setActiveTab("my")}
+          className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+            activeTab === "my" 
+              ? "bg-white text-primary shadow-sm" 
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          My Policies ({myPolicies.length})
+        </button>
+      </div>
 
-                  <BlockchainBadge type="secured" className="mb-4" />
-
-                  {/* Policy Details Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="p-3 rounded-xl bg-muted/30">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <DollarSign className="h-4 w-4" />
-                        <span className="text-xs">Coverage</span>
-                      </div>
-                      <p className="font-semibold">{policy.coverage}</p>
+      <div className="grid lg:grid-cols-4 gap-8">
+        {/* Filters Sidebar */}
+        <div className="lg:col-span-1 space-y-6">
+          <GlassCard>
+            <h3 className="font-bold mb-4 flex items-center gap-2">
+              <Filter className="h-4 w-4" /> Filters
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs mb-2 block uppercase tracking-wider opacity-60">Category</label>
+                <div className="space-y-2">
+                  {["All", "Auto", "Health", "Property", "Life"].map(cat => (
+                    <div key={cat} className="flex items-center gap-2">
+                      <input type="checkbox" id={`user-${cat}`} className="rounded border-muted" />
+                      <label htmlFor={`user-${cat}`} className="text-sm">{cat}</label>
                     </div>
-                    <div className="p-3 rounded-xl bg-muted/30">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <DollarSign className="h-4 w-4" />
-                        <span className="text-xs">Premium</span>
-                      </div>
-                      <p className="font-semibold">{policy.premium}</p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-muted/30">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Calendar className="h-4 w-4" />
-                        <span className="text-xs">Start Date</span>
-                      </div>
-                      <p className="font-semibold">{policy.startDate}</p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-muted/30">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Calendar className="h-4 w-4" />
-                        <span className="text-xs">End Date</span>
-                      </div>
-                      <p className="font-semibold">{policy.endDate}</p>
-                    </div>
-                  </div>
-
-                  {/* Coverage Features */}
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-3">Coverage Includes:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {policy.features.map((feature, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div className="w-5 h-5 rounded-full bg-success/10 flex items-center justify-center">
-                            <Check className="h-3 w-3 text-success" />
-                          </div>
-                          <span className="text-sm">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-3 lg:w-48">
-                  <Button variant="outline" className="justify-start">
-                    <FileText className="mr-2 h-4 w-4" />
-                    View Details
-                    <ChevronRight className="ml-auto h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" className="justify-start">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download PDF
-                  </Button>
-                  <Button className="bg-gradient-to-r from-primary to-secondary">
-                    File a Claim
-                  </Button>
+                  ))}
                 </div>
               </div>
-            </GlassCard>
-          </motion.div>
-        ))}
+            </div>
+          </GlassCard>
+        </div>
 
-        {/* Renewal Notice */}
-        <GlassCard className="border-warning/30 bg-warning/5">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-6 w-6 text-warning" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold mb-1">Policy Renewal Reminder</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Your Auto Insurance policy (POL-AUTO-2024) is expiring on Dec 31, 2024. 
-                Renew now to maintain continuous coverage.
-              </p>
-              <Button variant="outline" size="sm" className="border-warning text-warning hover:bg-warning/10">
-                Renew Policy
-              </Button>
-            </div>
+        {/* Policies List */}
+        <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {activeTab === "available" ? (
+              policies.map((policy, index) => {
+                const isOwned = myPolicies.some(myPol => myPol.policyId === policy.id);
+                return (
+                  <motion.div
+                    key={policy.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <GlassCard className="h-full flex flex-col hover:border-primary/50 transition-colors group">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                          <Briefcase className="h-6 w-6" />
+                        </div>
+                        <Badge variant="outline">{policy.category}</Badge>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold mb-2">{policy.policyName}</h3>
+                      <p className="text-sm text-muted-foreground mb-6 flex-1">
+                        {policy.description || "Comprehensive coverage powered by smart contracts for maximum transparency and speed."}
+                      </p>
+
+                      <div className="space-y-3 mb-6 pt-4 border-t border-border">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Coverage</span>
+                          <span className="font-bold">${policy.coverageAmount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Premium</span>
+                          <span className="font-bold text-primary">${policy.premium}/mo</span>
+                        </div>
+                      </div>
+
+                      <Button 
+                        onClick={() => handlePurchase(policy.id)}
+                        disabled={isOwned}
+                        className="w-full bg-primary hover:bg-primary/90"
+                      >
+                        {isOwned ? (
+                          <span className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4" /> Already Owned
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            Purchase Policy <ArrowRight className="h-4 w-4" />
+                          </span>
+                        )}
+                      </Button>
+                    </GlassCard>
+                  </motion.div>
+                );
+              })
+            ) : (
+              myPolicies.map((userPolicy, index) => (
+                <motion.div
+                  key={userPolicy.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <GlassCard className="h-full border-l-4 border-l-success">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <Badge className="bg-success/10 text-success mb-2">Active Policy</Badge>
+                        <h3 className="text-xl font-bold">{userPolicy.policy.policyName}</h3>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground uppercase">Expires</p>
+                        <p className="text-xs font-mono">{new Date(userPolicy.endDate).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 my-6 p-3 bg-muted/20 rounded-lg">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase">Coverage</p>
+                        <p className="font-bold text-sm">${userPolicy.policy.coverageAmount.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase">ID</p>
+                        <p className="font-mono text-[10px] truncate">{userPolicy.id}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      Purchased on {new Date(userPolicy.createdAt).toLocaleDateString()}
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              ))
+            )}
           </div>
-        </GlassCard>
+
+          {((activeTab === "available" && policies.length === 0) || (activeTab === "my" && myPolicies.length === 0)) && !loading && (
+            <div className="text-center py-20">
+              <Shield className="h-12 w-12 text-muted mx-auto mb-4 opacity-20" />
+              <p className="text-muted-foreground">No policies found.</p>
+            </div>
+          )}
+        </div>
       </div>
     </UserLayout>
   );

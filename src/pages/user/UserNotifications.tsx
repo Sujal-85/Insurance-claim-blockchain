@@ -16,80 +16,104 @@ import {
   Trash2,
 } from "lucide-react";
 
-const notifications = [
-  {
-    id: 1,
-    type: "approval",
-    title: "Claim Approved",
-    message: "Your claim CLM-2024-002 has been approved. Payment of $850 will be processed within 24 hours.",
-    date: "2 hours ago",
-    read: false,
-    icon: CheckCircle,
-    color: "text-success bg-success/10",
-  },
-  {
-    id: 2,
-    type: "update",
-    title: "Claim Under Review",
-    message: "Your claim CLM-2024-001 is currently under review by our team. Expected completion: 2-3 business days.",
-    date: "5 hours ago",
-    read: false,
-    icon: Clock,
-    color: "text-primary bg-primary/10",
-  },
-  {
-    id: 3,
-    type: "blockchain",
-    title: "Blockchain Verification Complete",
-    message: "Your claim CLM-2024-001 has been successfully recorded on the blockchain with transaction hash 0x8f2b...4a9c",
-    date: "1 day ago",
-    read: true,
-    icon: Shield,
-    color: "text-secondary bg-secondary/10",
-  },
-  {
-    id: 4,
-    type: "document",
-    title: "Document Verification",
-    message: "All documents for claim CLM-2024-001 have been verified successfully.",
-    date: "1 day ago",
-    read: true,
-    icon: FileText,
-    color: "text-primary bg-primary/10",
-  },
-  {
-    id: 5,
-    type: "payment",
-    title: "Payment Processed",
-    message: "Payment of $450 for claim CLM-2023-045 has been transferred to your account.",
-    date: "3 days ago",
-    read: true,
-    icon: DollarSign,
-    color: "text-success bg-success/10",
-  },
-  {
-    id: 6,
-    type: "rejection",
-    title: "Claim Rejected",
-    message: "Your claim CLM-2023-032 has been rejected. Reason: Procedure not covered under current policy terms.",
-    date: "1 week ago",
-    read: true,
-    icon: XCircle,
-    color: "text-destructive bg-destructive/10",
-  },
-  {
-    id: 7,
-    type: "warning",
-    title: "Policy Renewal Reminder",
-    message: "Your Auto Insurance policy (POL-AUTO-2024) expires in 30 days. Renew now to maintain coverage.",
-    date: "2 weeks ago",
-    read: true,
-    icon: AlertCircle,
-    color: "text-warning bg-warning/10",
-  },
-];
+import { useState, useEffect } from "react";
+import { getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
 
 export default function UserNotifications() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setError(null);
+        setIsLoading(true);
+        const address = await getSignerAddress();
+        if (!address) return;
+
+        const contract = getContractReadOnly();
+        const provider = contract.runner?.provider;
+        const contractAddress = await contract.getAddress();
+
+        if (provider) {
+          const code = await provider.getCode(contractAddress);
+          if (code === '0x' || code === '0x0') {
+            throw new Error('Smart contract not found at the configured address on this network.');
+          }
+        }
+
+        const cCount = await contract.claimCount();
+        const myNotes = [];
+
+        for (let i = 1; i <= Number(cCount); i++) {
+          const claim = await contract.claims(i);
+
+          if (claim.claimant.toLowerCase() === address.toLowerCase()) {
+            const dateStr = "On-Chain"; 
+            
+            if (!claim.processed) {
+              myNotes.push({
+                id: `${claim.claimId.toString()}-pending`,
+                type: "update",
+                title: "Claim Under Review",
+                message: `Your claim #${claim.claimId.toString()} is currently under review by our team.`,
+                date: dateStr,
+                read: false,
+                icon: Clock,
+                color: "text-primary bg-primary/10",
+              });
+            } else if (claim.processed && claim.approved) {
+              myNotes.push({
+                id: `${claim.claimId.toString()}-approved`,
+                type: "approval",
+                title: "Claim Approved",
+                message: `Your claim #${claim.claimId.toString()} has been approved. Payment will be processed.`,
+                date: dateStr,
+                read: false,
+                icon: CheckCircle,
+                color: "text-success bg-success/10",
+              });
+            } else if (claim.processed && !claim.approved) {
+              myNotes.push({
+                id: `${claim.claimId.toString()}-rejected`,
+                type: "rejection",
+                title: "Claim Rejected",
+                message: `Your claim #${claim.claimId.toString()} has been rejected.`,
+                date: dateStr,
+                read: false,
+                icon: XCircle,
+                color: "text-destructive bg-destructive/10",
+              });
+            }
+          }
+        }
+        
+        // Add a general notification for connected wallet
+        myNotes.push({
+          id: "welcome",
+          type: "blockchain",
+          title: "Blockchain Connected",
+          message: "Secure session established with Web3 Wallet.",
+          date: "Just now",
+          read: true,
+          icon: Shield,
+          color: "text-secondary bg-secondary/10",
+        });
+
+        // Display newest first
+        setNotifications(myNotes.reverse());
+
+      } catch (err: any) {
+        console.error("Failed to fetch notifications:", err);
+        setError(err.message || "Failed to update notifications from blockchain");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
@@ -112,6 +136,27 @@ export default function UserNotifications() {
           </Button>
         </div>
       </div>
+      
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <GlassCard className="border-destructive/20 bg-destructive/5 py-4">
+            <div className="flex gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">Blockchain Connection Issue</p>
+                <p className="text-sm text-destructive/80 mt-1">{error}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Tip: Ensure your MetaMask is connected to the Sepolia testnet and that the contract address in .env is correct.
+                </p>
+              </div>
+            </div>
+          </GlassCard>
+        </motion.div>
+      )}
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-6">
@@ -122,53 +167,68 @@ export default function UserNotifications() {
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
-          {notifications.map((notification, index) => {
-            const Icon = notification.icon;
-            return (
-              <motion.div
-                key={notification.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <GlassCard
-                  className={`cursor-pointer transition-all ${
-                    !notification.read ? "border-primary/30 bg-primary/5" : ""
-                  }`}
-                  hover
+          {notifications.length > 0 ? (
+            notifications.map((notification, index) => {
+              const Icon = notification.icon;
+              return (
+                <motion.div
+                  key={notification.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${notification.color}`}>
-                      <Icon className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{notification.title}</h3>
-                            {!notification.read && (
-                              <span className="w-2 h-2 rounded-full bg-primary" />
-                            )}
+                  <GlassCard
+                    className={`cursor-pointer transition-all ${
+                      !notification.read ? "border-primary/30 bg-primary/5" : ""
+                    }`}
+                    hover
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${notification.color}`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold">{notification.title}</h3>
+                              {!notification.read && (
+                                <span className="w-2 h-2 rounded-full bg-primary" />
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {notification.message}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {notification.message}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {notification.date}
-                          </span>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {notification.date}
+                            </span>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </GlassCard>
-              </motion.div>
-            );
-          })}
+                  </GlassCard>
+                </motion.div>
+              );
+            })
+          ) : (
+            <GlassCard className="text-center py-20 border-dashed">
+              <div className="relative mx-auto w-24 h-24 mb-6">
+                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                <div className="relative flex items-center justify-center w-24 h-24 bg-primary/10 rounded-full border border-primary/20">
+                  <Bell className="h-10 w-10 text-primary/60" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-2">No notifications yet</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto">
+                We'll notify you when there's an update on your claims, policy changes, or important account activities.
+              </p>
+            </GlassCard>
+          )}
         </TabsContent>
 
         <TabsContent value="unread">
@@ -209,27 +269,39 @@ export default function UserNotifications() {
                 })}
             </div>
           ) : (
-            <GlassCard className="text-center py-12">
-              <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold mb-2">All caught up!</h3>
-              <p className="text-muted-foreground">You have no unread notifications</p>
+            <GlassCard className="text-center py-20 border-dashed">
+              <div className="mx-auto w-24 h-24 bg-success/10 rounded-full flex items-center justify-center mb-6">
+                <CheckCircle className="h-10 w-10 text-success/60" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">All caught up!</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto">
+                You have no unread notifications at the moment. Good job staying on top of things!
+              </p>
             </GlassCard>
           )}
         </TabsContent>
 
         <TabsContent value="claims">
-          <GlassCard className="text-center py-12">
-            <FileText className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="font-semibold mb-2">Claims Notifications</h3>
-            <p className="text-muted-foreground">Showing claim-related updates</p>
+          <GlassCard className="text-center py-20 border-dashed">
+            <div className="mx-auto w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+              <FileText className="h-10 w-10 text-primary/60" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">No Claim Updates</h3>
+            <p className="text-muted-foreground max-w-sm mx-auto">
+              Any updates regarding your submitted insurance claims will appear here.
+            </p>
           </GlassCard>
         </TabsContent>
 
         <TabsContent value="payments">
-          <GlassCard className="text-center py-12">
-            <DollarSign className="h-12 w-12 text-success mx-auto mb-4" />
-            <h3 className="font-semibold mb-2">Payment Notifications</h3>
-            <p className="text-muted-foreground">Showing payment-related updates</p>
+          <GlassCard className="text-center py-20 border-dashed">
+            <div className="mx-auto w-24 h-24 bg-success/10 rounded-full flex items-center justify-center mb-6">
+              <DollarSign className="h-10 w-10 text-success/60" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">No Payment Activity</h3>
+            <p className="text-muted-foreground max-w-sm mx-auto">
+              Your claim payouts and policy premium payment history will be listed here.
+            </p>
           </GlassCard>
         </TabsContent>
       </Tabs>

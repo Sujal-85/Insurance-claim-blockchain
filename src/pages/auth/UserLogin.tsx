@@ -1,29 +1,50 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { Shield, ArrowLeft, Wallet, Mail, Lock, Eye, EyeOff, ChevronRight } from "lucide-react";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { Separator } from "@/components/ui/separator";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
 export default function UserLogin() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const response = await api.post("/auth/login", { email, password });
+      localStorage.setItem("auth_token", response.data.access_token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      toast.success("Welcome back, " + (response.data.user.name || "User"));
+      navigate("/user/dashboard");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex relative overflow-hidden">
       {/* Left Panel - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-primary via-primary/90 to-secondary p-12 flex-col justify-between">
-        <div className="absolute inset-0 mesh-gradient opacity-30" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+      <div className="hidden lg:flex lg:w-1/2 relative bg-primary p-12 flex-col justify-between">
+        <div className="absolute inset-0 bg-background opacity-10" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
         
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <Shield className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center p-2">
+              <img src="/logo.png" alt="RealtyCheck Logo" className="h-8 w-8 object-contain brightness-0 invert" />
             </div>
-            <span className="font-display font-bold text-2xl text-white">ChainSure</span>
+            <span className="font-display font-bold text-2xl text-white">RealtyCheck</span>
           </Link>
         </div>
 
@@ -79,30 +100,8 @@ export default function UserLogin() {
               </p>
             </div>
 
-            {/* Wallet Login */}
-            <GlassCard className="mb-6 cursor-pointer group" hover>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Wallet className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Connect Wallet</p>
-                    <p className="text-sm text-muted-foreground">MetaMask, WalletConnect, etc.</p>
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-              </div>
-            </GlassCard>
-
-            <div className="flex items-center gap-4 my-6">
-              <Separator className="flex-1" />
-              <span className="text-sm text-muted-foreground">or continue with email</span>
-              <Separator className="flex-1" />
-            </div>
-
             {/* Email Login Form */}
-            <form className="space-y-4">
+            <form className="space-y-4 mt-8" onSubmit={handleLogin}>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <div className="relative">
@@ -111,6 +110,9 @@ export default function UserLogin() {
                     id="email"
                     type="email"
                     placeholder="john@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
                     className="pl-10 h-12 bg-muted/50"
                   />
                 </div>
@@ -129,6 +131,9 @@ export default function UserLogin() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
                     className="pl-10 pr-10 h-12 bg-muted/50"
                   />
                   <button
@@ -141,11 +146,13 @@ export default function UserLogin() {
                 </div>
               </div>
 
-              <Link to="/user/dashboard">
-                <Button className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90 mt-2">
-                  Sign In
-                </Button>
-              </Link>
+              <Button 
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 bg-primary hover:bg-primary/90 mt-2"
+              >
+                {isLoading ? "Signing In..." : "Sign In"}
+              </Button>
             </form>
 
             <p className="text-center text-sm text-muted-foreground mt-6">

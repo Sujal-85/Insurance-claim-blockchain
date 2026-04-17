@@ -41,16 +41,15 @@ export function AdminSidebar() {
       )}
     >
       <div className="flex flex-col h-full">
-        {/* Logo with Admin Badge */}
         <div className="p-6 border-b border-sidebar-border">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-security to-primary flex items-center justify-center">
-              <Shield className="h-5 w-5 text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="RealtyCheck Logo" className="w-full h-full object-cover" />
             </div>
             {!collapsed && (
               <div>
                 <span className="font-display font-bold text-lg text-sidebar-foreground block">
-                  ChainSure
+                  RealtyCheck
                 </span>
                 <span className="text-xs text-sidebar-primary font-medium">Admin Portal</span>
               </div>
@@ -68,7 +67,7 @@ export function AdminSidebar() {
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
                     isActive
-                      ? "bg-gradient-to-r from-security/80 to-primary/80 text-white"
+                      ? "bg-primary text-white"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   )}
                   whileHover={{ x: 4 }}
@@ -93,16 +92,19 @@ export function AdminSidebar() {
             <ChevronLeft className={cn("h-5 w-5 transition-transform", collapsed && "rotate-180")} />
             {!collapsed && <span className="ml-3">Collapse</span>}
           </Button>
-          <Link to="/">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-            >
-              <LogOut className="h-5 w-5" />
-              {!collapsed && <span className="ml-3">Sign Out</span>}
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              localStorage.removeItem("auth_token");
+              localStorage.removeItem("user");
+              window.location.href = "/";
+            }}
+            className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <LogOut className="h-5 w-5" />
+            {!collapsed && <span className="ml-3">Sign Out</span>}
+          </Button>
         </div>
       </div>
     </motion.aside>

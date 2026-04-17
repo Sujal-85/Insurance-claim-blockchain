@@ -8,32 +8,68 @@ import { Link } from "react-router-dom";
 import {
   FileStack,
   CheckCircle,
-  XCircle,
   Clock,
   AlertTriangle,
   TrendingUp,
-  Users,
   DollarSign,
   ArrowRight,
-  BarChart3,
 } from "lucide-react";
-
-const recentClaims = [
-  { id: "CLM-2024-015", user: "Alice Johnson", amount: "$3,200", risk: "low", status: "pending" as const },
-  { id: "CLM-2024-014", user: "Bob Smith", amount: "$8,500", risk: "high", status: "processing" as const },
-  { id: "CLM-2024-013", user: "Carol White", amount: "$1,200", risk: "low", status: "approved" as const },
-  { id: "CLM-2024-012", user: "David Brown", amount: "$15,000", risk: "medium", status: "pending" as const },
-];
+import { toast } from "sonner";
+import { useState, useEffect } from "react";
+import api from "@/lib/api";
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState({ totalClaims: 0, pendingReview: 0, approvedToday: 0, totalPayouts: 0 });
+  const [recentClaims, setRecentClaims] = useState<any[]>([]);
+
+  const fetchData = async () => {
+    try {
+      // Fetch stats from backend API
+      const statsResponse = await api.get('/claims/stats');
+      const backendStats = statsResponse.data;
+      
+      setStats({
+        totalClaims: backendStats.totalClaims || 0,
+        pendingReview: backendStats.pendingReview || 0,
+        approvedToday: backendStats.approvedClaims || 0,
+        totalPayouts: backendStats.totalPayouts || 0
+      });
+
+      // Fetch recent claims from backend API - show pending/ai_verified first
+      const claimsResponse = await api.get('/claims');
+      const pendingClaims = claimsResponse.data
+        .filter((c: any) => ['PENDING', 'AI_VERIFIED'].includes(c.status))
+        .slice(0, 4);
+
+      const mappedClaims = pendingClaims.map((claim: any) => ({
+        id: claim.id,
+        user: claim.user?.name || claim.user?.email || "Unknown User",
+        userAddress: claim.user?.walletAddress || "N/A",
+        amount: `$${(claim.amount || 0).toLocaleString()}`,
+        risk: Math.round(claim.aiRiskScore || 10),
+        status: claim.status === 'AI_VERIFIED' ? 'processing' : claim.status.toLowerCase(),
+        date: new Date(claim.createdAt).toLocaleDateString()
+      }));
+
+      setRecentClaims(mappedClaims);
+    } catch (err: any) {
+      console.error("Admin dashboard fetch error:", err);
+      toast.error("Failed to load dashboard data: " + (err.message || "Unknown error"));
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   return (
     <AdminLayout title="Admin Dashboard" subtitle="Insurance claim management overview">
       {/* Stats Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard title="Total Claims" value="1,234" icon={FileStack} change={{ value: 12, trend: "up" }} />
-        <StatsCard title="Pending Review" value="47" icon={Clock} iconColor="bg-warning/10 text-warning" />
-        <StatsCard title="Approved Today" value="23" icon={CheckCircle} iconColor="bg-success/10 text-success" />
-        <StatsCard title="Total Payouts" value="$2.4M" icon={DollarSign} change={{ value: 8, trend: "up" }} />
+        <StatsCard title="Total Claims" value={stats.totalClaims.toString()} icon={FileStack} change={{ value: 12, trend: "up" }} />
+        <StatsCard title="Pending Review" value={stats.pendingReview.toString()} icon={Clock} iconColor="bg-warning/10 text-warning" />
+        <StatsCard title="Approved Contracts" value={stats.approvedToday.toString()} icon={CheckCircle} iconColor="bg-success/10 text-success" />
+        <StatsCard title="Total Payouts" value={`$${stats.totalPayouts.toLocaleString()}`} icon={DollarSign} change={{ value: 8, trend: "up" }} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -47,6 +83,7 @@ export default function AdminDashboard() {
               </Link>
             </div>
             <div className="space-y-4">
+              {recentClaims.length === 0 && <p className="text-muted-foreground text-sm">No claims in the queue.</p>}
               {recentClaims.map((claim, index) => (
                 <motion.div
                   key={claim.id}
@@ -60,19 +97,19 @@ export default function AdminDashboard() {
                       {claim.user.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-medium">{claim.id}</p>
+                      <p className="font-medium">Claim #{claim.id}</p>
                       <p className="text-sm text-muted-foreground">{claim.user}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      claim.risk === "high" ? "bg-destructive/10 text-destructive" :
-                      claim.risk === "medium" ? "bg-warning/10 text-warning" :
+                      claim.risk >= 70 ? "bg-destructive/10 text-destructive" :
+                      claim.risk >= 40 ? "bg-warning/10 text-warning" :
                       "bg-success/10 text-success"
                     }`}>
-                      {claim.risk} risk
+                      {claim.risk}/100 risk
                     </span>
-                    <p className="font-semibold w-20 text-right">{claim.amount}</p>
+                    <p className="font-semibold w-24 text-right truncate" title={claim.amount}>{claim.amount}</p>
                     <StatusBadge status={claim.status} size="sm" />
                   </div>
                 </motion.div>

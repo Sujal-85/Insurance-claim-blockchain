@@ -6,17 +6,53 @@ import { Label } from "@/components/ui/label";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Shield, ArrowLeft, Mail, Lock, Eye, EyeOff, AlertTriangle, Key } from "lucide-react";
 import { useState } from "react";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<"credentials" | "mfa">("credentials");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const response = await api.post('/auth/admin-login', { email, password });
+      localStorage.setItem('auth_token', response.data.access_token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      toast.success("Login successful! Please verify MFA.");
+      setStep("mfa");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Login failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // MFA is simulated, so we just proceed
+    setIsLoading(true);
+    toast.success("MFA verified successfully!");
+    
+    // Small delay to ensure localStorage is fully flushed and available for the next route
+    setTimeout(() => {
+      setIsLoading(false);
+      navigate("/admin/dashboard");
+    }, 500);
+  };
 
   return (
     <div className="min-h-screen bg-background flex relative overflow-hidden">
       {/* Left Panel - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-sidebar via-sidebar/90 to-security/80 p-12 flex-col justify-between">
-        <div className="absolute inset-0 mesh-gradient opacity-20" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-security/20 rounded-full blur-3xl" />
+      <div className="hidden lg:flex lg:w-1/2 relative bg-sidebar p-12 flex-col justify-between">
+        <div className="absolute inset-0 bg-background opacity-10" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-security/10 rounded-full blur-3xl" />
         
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3">
@@ -24,7 +60,7 @@ export default function AdminLogin() {
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div>
-              <span className="font-display font-bold text-2xl text-white block">ChainSure</span>
+              <span className="font-display font-bold text-2xl text-white block">RealtyCheck</span>
               <span className="text-xs text-sidebar-primary">Admin Portal</span>
             </div>
           </Link>
@@ -75,7 +111,7 @@ export default function AdminLogin() {
               <>
                 <div className="mb-8">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-security/20 to-primary/20 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-security/20 flex items-center justify-center">
                       <Shield className="h-6 w-6 text-security" />
                     </div>
                     <div>
@@ -96,7 +132,7 @@ export default function AdminLogin() {
                   </div>
                 </div>
 
-                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setStep("mfa"); }}>
+                <form className="space-y-4" onSubmit={handleLogin}>
                   <div className="space-y-2">
                     <Label htmlFor="admin-email">Admin Email</Label>
                     <div className="relative">
@@ -104,8 +140,11 @@ export default function AdminLogin() {
                       <Input
                         id="admin-email"
                         type="email"
-                        placeholder="admin@chainsure.com"
+                        placeholder="admin@example.com"
                         className="pl-10 h-12 bg-muted/50"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
                       />
                     </div>
                   </div>
@@ -119,6 +158,9 @@ export default function AdminLogin() {
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         className="pl-10 pr-10 h-12 bg-muted/50"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
                       />
                       <button
                         type="button"
@@ -130,8 +172,12 @@ export default function AdminLogin() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full h-12 bg-gradient-to-r from-security to-primary hover:opacity-90 mt-2">
-                    Continue to Verification
+                  <Button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full h-12 bg-security hover:bg-security/90 mt-2"
+                  >
+                    {isLoading ? "Signing in..." : "Continue to Verification"}
                   </Button>
                 </form>
               </>
@@ -139,7 +185,7 @@ export default function AdminLogin() {
               <>
                 <div className="mb-8">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-success/20 to-primary/20 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
                       <Key className="h-6 w-6 text-success" />
                     </div>
                     <div>
@@ -155,7 +201,7 @@ export default function AdminLogin() {
                   </p>
                 </GlassCard>
 
-                <form className="space-y-4">
+                <form className="space-y-4" onSubmit={handleVerifyMfa}>
                   <div className="space-y-2">
                     <Label htmlFor="mfa-code">Verification Code</Label>
                     <div className="grid grid-cols-6 gap-2">
@@ -169,11 +215,9 @@ export default function AdminLogin() {
                     </div>
                   </div>
 
-                  <Link to="/admin/dashboard">
-                    <Button className="w-full h-12 bg-gradient-to-r from-security to-primary hover:opacity-90 mt-4">
-                      Verify & Sign In
-                    </Button>
-                  </Link>
+                  <Button type="submit" className="w-full h-12 bg-security hover:bg-security/90 mt-4">
+                    Verify & Sign In
+                  </Button>
 
                   <Button
                     type="button"

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Shield, Link, Lock } from "lucide-react";
+import { Shield, Link, Lock, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface BlockchainBadgeProps {
@@ -12,22 +12,27 @@ const badgeConfig = {
   verified: {
     icon: Shield,
     label: "Blockchain Verified",
-    gradient: "from-primary to-secondary",
+    gradient: "bg-primary",
   },
   secured: {
     icon: Lock,
     label: "Secured on Chain",
-    gradient: "from-security to-primary",
+    gradient: "bg-security",
   },
   linked: {
     icon: Link,
     label: "On-Chain Record",
-    gradient: "from-secondary to-trust",
+    gradient: "bg-secondary",
+  },
+  pending: {
+    icon: Clock,
+    label: "Verification Pending",
+    gradient: "bg-muted text-muted-foreground",
   },
 };
 
 export function BlockchainBadge({ type = "verified", label, className }: BlockchainBadgeProps) {
-  const config = badgeConfig[type];
+  const config = badgeConfig[type as keyof typeof badgeConfig] || badgeConfig.pending;
   const Icon = config.icon;
   const displayLabel = label || config.label;
 
@@ -37,7 +42,7 @@ export function BlockchainBadge({ type = "verified", label, className }: Blockch
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
         "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium",
-        "bg-gradient-to-r text-white shadow-md",
+        "text-white shadow-md",
         config.gradient,
         className
       )}
