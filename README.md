@@ -1,135 +1,86 @@
 ⛓️ Insurance Claim Blockchain System
+<p align="center"> <b>🚀 Decentralized Insurance Platform powered by Blockchain + AI</b><br/> <i>Secure • Transparent • Intelligent</i> </p> <p align="center"> <img src="https://img.shields.io/badge/Frontend-React%20%2B%20Vite-blue?style=for-the-badge"/> <img src="https://img.shields.io/badge/Backend-NestJS-red?style=for-the-badge"/> <img src="https://img.shields.io/badge/Blockchain-Solidity-purple?style=for-the-badge"/> <img src="https://img.shields.io/badge/Database-MongoDB-green?style=for-the-badge"/> <img src="https://img.shields.io/badge/AI-Google%20Gemini-orange?style=for-the-badge"/> </p>
 
-🚀 A full-stack decentralized insurance platform powered by Blockchain + AI
+✨ Overview
 
-📌 Project Overview
+A full-stack blockchain-based insurance system where claims are verified by AI and stored on-chain for complete transparency.
 
-This project is a blockchain-based insurance claim management system where users can:
+🔹 Users can buy policies & submit claims
+🔹 AI detects fraud using Google Gemini
+🔹 Approved claims are stored on blockchain
+🔹 Admin panel with full analytics & control
 
-Purchase insurance policies
-Submit claims with documents
-Get AI-based fraud detection (Google Gemini)
-Store claim results on blockchain (Solidity smart contract)
+<img width="2425" height="130" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/8880c15d-ba82-4e26-a4ea-cd5d88e5c436" />
 
-Admins can review, approve, or reject claims with a transparent and immutable audit trail.
+🧠 Tech Stack
 
-🔄 Claim Lifecycle Flow
-User Signup → Buy Policy → Submit Claim → AI Verification → Admin Review → On-chain Record
-🛠️ Tech Stack
-Frontend
-⚛️ React 18 + Vite + TypeScript
-🎨 Tailwind CSS + shadcn/ui
-Backend
-🦁 NestJS
-🗃️ Prisma + MongoDB
-Blockchain
-⛓️ Solidity (Smart Contracts)
-🔗 Ethers.js
-AI
-🤖 Google Gemini AI (Fraud Detection)
-Authentication
-🔐 JWT + Passport
-✨ Key Features
-🔒 Role-Based Access (User/Admin)
-🤖 AI Fraud Detection System
-⛓️ Blockchain Claim Storage
-📄 Policy Management
-📁 IPFS Document Storage
-📊 Admin Analytics Dashboard
-🧾 Audit Logs
-🔔 Real-time Notifications
+<table> <thead> <tr> <th>Layer</th> <th>Technology</th> </tr> </thead> <tbody> <tr> <td>🎨 Frontend</td> <td>React + Vite + TypeScript</td> </tr> <tr> <td>⚙️ Backend</td> <td>NestJS</td> </tr> <tr> <td>🗃️ Database</td> <td>MongoDB + Prisma</td> </tr> <tr> <td>⛓️ Blockchain</td> <td>Solidity + Ethers.js</td> </tr> <tr> <td>🤖 AI</td> <td>Google Gemini</td> </tr> <tr> <td>🔐 Authentication</td> <td>JWT + Passport</td> </tr> </tbody> </table>
+
+###🚀 Features
+
+🔐 Security & Roles
+Role-based authentication (User/Admin)
+JWT secured APIs
+🤖 AI Intelligence
+Fraud detection using Gemini AI
+Risk scoring + explanation
+⛓️ Blockchain Integration
+Immutable claim records
+Smart contract execution
+📊 Dashboard
+Admin analytics (charts & stats)
+Claim tracking system
+📁 Storage
+IPFS-based document storage
+
+
 👥 User Roles
 👤 USER
-Signup/Login
-Buy policies
-Submit claims
-Track claim status
-View blockchain transaction
+
+✔️ Buy policies
+✔️ Submit claims
+✔️ Track status
+✔️ View blockchain transactions
+
 🛡️ ADMIN
-Manage policies
-Review AI-verified claims
-Approve/Reject claims
-View analytics & logs
-📁 Project Structure
-Insurance-claim-blockchain/
+
+✔️ Manage policies
+✔️ Review AI claims
+✔️ Approve / Reject
+✔️ View analytics
+
+📦 Insurance-claim-blockchain
+├── 📂 src (Frontend)
+│   ├── 📂 pages
+│   ├── 📂 components
+│   ├── 📂 hooks
+│   └── 📂 lib
 │
-├── src/                 # Frontend (React)
-│   ├── pages/
-│   │   ├── admin/
-│   │   ├── user/
-│   │   └── auth/
-│   ├── components/
-│   ├── hooks/
-│   └── lib/
+├── 📂 backend (NestJS)
+│   ├── 📂 auth
+│   ├── 📂 claims
+│   ├── 📂 policies
+│   ├── 📂 blockchain
+│   └── 📂 prisma
 │
-├── backend/             # Backend (NestJS)
-│   ├── src/
-│   │   ├── auth/
-│   │   ├── claims/
-│   │   ├── policies/
-│   │   ├── blockchain/
-│   │   └── prisma/
-│   └── prisma/
-│
-└── smart-contract.sol
+└── 📜 smart-contract.sol
+
 ⛓️ Smart Contract
+createPolicy()     # Create new policy
+submitClaim()      # Submit claim
+approveClaim()     # Admin approval
+rejectClaim()      # Admin rejection
 
-Main functionalities:
 
-createPolicy() → Create policy
-submitClaim() → Submit claim
-approveClaim() → Approve claim (Admin only)
-rejectClaim() → Reject claim (Admin only)
-🗃️ Database Models
-User
-Policy
-Claim
-AI_Verification
-Document (IPFS)
-Audit_Log
-🚀 Getting Started
-1️⃣ Clone Repository
-git clone https://github.com/Sujal-85/Insurance-claim-blockchain.git
-cd Insurance-claim-blockchain
-2️⃣ Frontend Setup
-npm install
-npm run dev
-3️⃣ Backend Setup
-cd backend
-npm install
-cp .env.example .env
-npx prisma generate
-npm run dev
-⚙️ Environment Variables
-DATABASE_URL=
-JWT_SECRET=
-GEMINI_API_KEY=
-CONTRACT_ADDRESS=
-PRIVATE_KEY=
-RPC_URL=
-🔌 API Endpoints
-Method	Endpoint	Description
-POST	/auth/signup	Register user
-POST	/auth/login	Login
-GET	/policies	Get policies
-POST	/policies	Create policy (Admin)
-GET	/claims	Get claims
-POST	/claims	Submit claim
-PATCH	/claims/:id/approve	Approve claim
-PATCH	/claims/:id/reject	Reject claim
-🏷️ Claim Status
-🟡 PENDING
-🔵 AI_VERIFIED
-🟢 APPROVED
-🔴 REJECTED
-📊 Future Improvements
-🔗 Multi-chain support
-📱 Mobile app (Flutter)
-🧠 Advanced ML fraud detection
+📊 Future Scope
+🌐 Multi-chain support
+📱 Mobile App (Flutter)
+🧠 Advanced ML fraud models
 🔔 Real-time notifications
 🤝 Contributing
 
-Pull requests are welcome. For major changes, please open an issue first.
+Pull requests are welcome!
+If you find bugs or want features → open an issue 🚀
 
 📄 License
 
@@ -139,3 +90,94 @@ MIT License
 
 Sujal Sadanand Khedekar
 📞 9359742537
+
+⭐ Support
+
+If you like this project:
+👉 Star the repo
+👉 Share with friends
+👉 Use it in your portfolio
+
+🔥 Final Upgrade Tip
+
+If you want next-level (top 1% GitHub):
+
+Add project screenshots
+Add demo video GIF
+Add live demo link
+
+I can design that also for you 😎
+
+🧠 Tech Stack
+Layer	Technology
+🎨 Frontend	React + Vite + TypeScript
+⚙️ Backend	NestJS
+🗃️ Database	MongoDB + Prisma
+⛓️ Blockchain	Solidity + Ethers.js
+🤖 AI	Google Gemini
+🔐 Auth	JWT + Passport
+
+in tb,th tags
+
+Got you — you want it in HTML table format (tb, th) for GitHub Markdown 👇
+This will render clean + professional.
+
+🧠 Tech Stack
+<table> <thead> <tr> <th>Layer</th> <th>Technology</th> </tr> </thead> <tbody> <tr> <td>🎨 Frontend</td> <td>React + Vite + TypeScript</td> </tr> <tr> <td>⚙️ Backend</td> <td>NestJS</td> </tr> <tr> <td>🗃️ Database</td> <td>MongoDB + Prisma</td> </tr> <tr> <td>⛓️ Blockchain</td> <td>Solidity + Ethers.js</td> </tr> <tr> <td>🤖 AI</td> <td>Google Gemini</td> </tr> <tr> <td>🔐 Authentication</td> <td>JWT + Passport</td> </tr> </tbody> </table>
+
+💡 Small pro tip:
+GitHub supports HTML tables, so this will look more aligned and structured than normal markdown tables — perfect for portfolio-level README.
+
+If you want, I can make:
+
+icons aligned perfectly
+colored badges inside table
+or a “glass UI style” README (crazy premium look 😎)
+createPolicy()     // Create new policy
+submitClaim()      // Submit claim
+approveClaim()     // Admin approval
+rejectClaim()      // Admin rejection
+
+should be shown in the bash 
+
+Got it — you want this to look like a bash-style code block (clean + developer vibe) 👇
+
+⛓️ Smart Contract
+createPolicy()     # Create new policy
+submitClaim()      # Submit claim
+approveClaim()     # Admin approval
+rejectClaim()      # Admin rejection
+
+💡 Why this works better:
+
+bash highlighting makes it look like CLI commands
+# comments look cleaner than // in this style
+Gives that real dev-terminal aesthetic 😎
+
+If you want next level, I can also:
+
+add function parameters
+or show real Solidity snippets with syntax highlight 🔥
+in readme according to give 
+
+Got you — for a proper GitHub README, keep it clean and standard (no extra ids, just pure markdown).
+Here’s the correct version 👇
+
+⛓️ Smart Contract
+createPolicy()     # Create new policy
+submitClaim()      # Submit claim
+approveClaim()     # Admin approval
+rejectClaim()      # Admin rejection
+
+💡 This is the best practice for README:
+
+Clean ✔️
+GitHub-compatible ✔️
+Looks like terminal commands ✔️
+
+If you want even more professional look, I can convert it into:
+
+Solidity code block (solidity)
+or API-style documentation
+
+Just tell me 👍
