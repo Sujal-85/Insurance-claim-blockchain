@@ -16,7 +16,7 @@ A full-stack blockchain-based insurance system where claims are verified by AI a
 
 <table> <thead> <tr> <th>Layer</th> <th>Technology</th> </tr> </thead> <tbody> <tr> <td>🎨 Frontend</td> <td>React + Vite + TypeScript</td> </tr> <tr> <td>⚙️ Backend</td> <td>NestJS</td> </tr> <tr> <td>🗃️ Database</td> <td>MongoDB + Prisma</td> </tr> <tr> <td>⛓️ Blockchain</td> <td>Solidity + Ethers.js</td> </tr> <tr> <td>🤖 AI</td> <td>Google Gemini</td> </tr> <tr> <td>🔐 Authentication</td> <td>JWT + Passport</td> </tr> </tbody> </table>
 
-#🚀 Features
+🚀 Features
 
 🔐 Security & Roles
 Role-based authentication (User/Admin)
@@ -49,7 +49,7 @@ IPFS-based document storage
 ✔️ Approve / Reject
 ✔️ View analytics
 
-/bash
+
 📦 Insurance-claim-blockchain
 ├── 📂 src (Frontend)
 │   ├── 📂 pages
