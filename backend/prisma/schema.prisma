@@ -35,6 +35,7 @@ model User {
   phoneNumber   String?
   address       String?
   avatar        String?
+  balance       Float     @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -46,6 +47,7 @@ model Admin {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   email         String    @unique
   passwordHash  String
+  walletAddress String?   @unique
   role          Role      @default(ADMIN)
   createdAt     DateTime  @default(now())
 }
@@ -95,6 +97,7 @@ model Claim {
   status          ClaimStatus      @default(PENDING)
   aiRiskScore     Float?
   blockchainTxHash String?
+  blockchainClaimId String?          @unique
   blockchainStatus BlockchainStatus @default(PENDING)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt

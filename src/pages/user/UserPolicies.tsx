@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { getSignerAddress } from "@/lib/ethereum";
 
 export default function UserPolicies() {
   const [policies, setPolicies] = useState<any[]>([]);
@@ -43,13 +44,28 @@ export default function UserPolicies() {
 
   const handlePurchase = async (policyId: string) => {
     try {
-      await api.post(`/policies/${policyId}/purchase`);
-      toast.success("Policy purchased successfully!");
+      // Ensure wallet is connected for blockchain authentication
+      const address = await getSignerAddress();
+      if (!address) {
+        toast.error("Please connect your Web3 wallet to purchase a policy.");
+        return;
+      }
+
+      const message = `I authorize the purchase of policy ${policyId} at ${new Date().toISOString()}`;
+      const { signMessage } = await import("@/lib/ethereum");
+      const signature = await signMessage(message);
+
+      await api.post(`/policies/${policyId}/purchase`, { 
+        walletAddress: address,
+        signature,
+        message
+      });
+      toast.success("Policy purchased and secured on blockchain!");
       fetchData();
       setActiveTab("my");
     } catch (error) {
       console.error("Purchase error:", error);
-      toast.error("Failed to purchase policy");
+      toast.error("Failed to purchase policy. Check your wallet connection.");
     }
   };
 

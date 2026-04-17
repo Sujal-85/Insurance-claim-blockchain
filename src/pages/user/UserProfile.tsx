@@ -14,32 +14,109 @@ import {
   ExternalLink,
   Wallet,
   Edit,
-  Clock
+  Clock,
+  DollarSign,
+  ArrowUpRight,
+  Loader2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { getSignerAddress } from "@/lib/ethereum";
 
 export default function UserProfile() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [showWithdrawForm, setShowWithdrawForm] = useState(false);
+  const [connectedAddress, setConnectedAddress] = useState<string>("");
+
+  const truncateAddress = (address: string) => {
+    if (!address) return "0x00...000";
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileData = async () => {
       try {
-        const response = await api.get('/auth/profile');
-        setProfile(response.data);
+        const [profileRes, walletAddr] = await Promise.all([
+          api.get('/auth/profile'),
+          getSignerAddress()
+        ]);
+        setProfile(profileRes.data);
+        setConnectedAddress(walletAddr);
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Error fetching profile data:", error);
         toast.error("Failed to load profile data");
       } finally {
         setLoading(false);
       }
     };
-    fetchProfile();
+    fetchProfileData();
   }, []);
+
+  const handleWithdraw = async () => {
+    const amount = parseFloat(withdrawAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    if (amount > (profile?.balance || 0)) {
+      toast.error("Insufficient balance");
+      return;
+    }
+
+    setWithdrawLoading(true);
+    try {
+      const { signMessage } = await import("@/lib/ethereum");
+      const message = `I authorize the withdrawal of $${amount} from my Secure Chain account at ${new Date().toISOString()}`;
+      const signature = await signMessage(message);
+
+      const response = await api.post('/auth/withdraw', { 
+        amount,
+        signature,
+        message
+      });
+      toast.success(`Successfully withdrew $${amount}`);
+      setProfile({ ...profile, balance: response.data.newBalance });
+      setWithdrawAmount("");
+      setShowWithdrawForm(false);
+    } catch (error: any) {
+      console.error("Withdrawal error:", error);
+      toast.error(error.response?.data?.message || "Withdrawal failed");
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
+
+  const handleLinkWallet = async () => {
+    const address = await getSignerAddress();
+    if (!address) {
+      toast.error("Please connect your MetaMask wallet first");
+      return;
+    }
+
+    try {
+      const { signMessage } = await import("@/lib/ethereum");
+      const message = `I authorize linking this wallet address ${address} to my Secure Chain profile at ${new Date().toISOString()}`;
+      const signature = await signMessage(message);
+
+      await api.patch('/auth/profile', { 
+        walletAddress: address,
+        signature,
+        message
+      });
+      setProfile({ ...profile, walletAddress: address });
+      setConnectedAddress(address);
+      toast.success("Wallet linked to profile successfully!");
+    } catch (error) {
+      console.error("Error linking wallet:", error);
+      toast.error("Failed to link wallet to profile");
+    }
+  };
 
   if (loading || !profile) {
     return (
@@ -119,7 +196,9 @@ export default function UserProfile() {
                 </div>
                 <div>
                   <h4 className="font-bold">MetaMask Wallet</h4>
-                  <div className="text-sm font-mono text-muted-foreground">{profile.walletAddress || "0x00...000"}</div>
+                  <div className="text-sm font-mono text-muted-foreground">
+                    {truncateAddress(connectedAddress || profile.walletAddress)}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -129,14 +208,72 @@ export default function UserProfile() {
                 </Button>
               </div>
             </div>
-            <Button className="w-full mt-6 bg-primary/10 text-primary hover:bg-primary/20 border-none">
-              Connect Different Wallet
+            <Button 
+              className="w-full mt-6 bg-primary/10 text-primary hover:bg-primary/20 border-none"
+              onClick={handleLinkWallet}
+            >
+              {profile.walletAddress ? "Update Linked Wallet" : "Link Current Wallet to Profile"}
             </Button>
           </GlassCard>
         </div>
 
         {/* Sidebar Stats */}
         <div className="space-y-8">
+          {/* Balance Card */}
+          <GlassCard variant="elevated">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold">Your Balance</h3>
+              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-success" />
+              </div>
+            </div>
+            <div className="text-center mb-6">
+              <p className="text-4xl font-bold text-success">${profile.balance?.toLocaleString() || '0'}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {(profile.balance || 0) > 0 ? "Available for withdrawal" : 
+                 (profile.totalClaims || 0) === 0 ? "Submit a claim to start earning" : "No funds available for withdrawal"}
+              </p>
+            </div>
+            
+            {showWithdrawForm ? (
+              <div className="space-y-3">
+                <Input
+                  type="number"
+                  placeholder="Enter amount to withdraw"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  className="bg-muted/30"
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1 bg-success hover:bg-success/90" 
+                    onClick={handleWithdraw}
+                    disabled={withdrawLoading}
+                  >
+                    {withdrawLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => setShowWithdrawForm(false)}
+                    disabled={withdrawLoading}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button 
+                className={`w-full ${(profile.balance || 0) > 0 ? 'bg-success hover:bg-success/90' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
+                onClick={() => (profile.balance || 0) > 0 && setShowWithdrawForm(true)}
+                disabled={(profile.balance || 0) <= 0}
+              >
+                <ArrowUpRight className="mr-2 h-4 w-4" />
+                {(profile.balance || 0) > 0 ? "Withdraw Funds" : "Insufficient Funds"}
+              </Button>
+            )}
+          </GlassCard>
+
           <GlassCard variant="elevated">
             <h3 className="text-lg font-bold mb-6">Account Summary</h3>
             <div className="space-y-6">

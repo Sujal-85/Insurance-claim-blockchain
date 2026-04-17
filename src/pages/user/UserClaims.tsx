@@ -148,7 +148,7 @@ export default function UserClaims() {
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-1">
-                              <h3 className="font-semibold text-sm truncate max-w-[150px]">{claim.id}</h3>
+                              <h3 className="font-semibold text-sm">#{claim.id.slice(-8).toUpperCase()}</h3>
                               <StatusBadge status={claim.status} size="sm" showIcon={false} />
                             </div>
                             <p className="text-sm text-muted-foreground mb-2">{claim.description}</p>

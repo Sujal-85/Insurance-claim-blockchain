@@ -30,7 +30,7 @@ const quickActions = [
 ];
 
 export default function UserDashboard() {
-  const [stats, setStats] = useState({ activePolicies: 0, totalClaims: 0, approvedClaims: 0, totalPayouts: 0 });
+  const [stats, setStats] = useState({ activePolicies: 0, totalClaims: 0, approvedClaims: 0, balance: 0 });
   const [recentClaims, setRecentClaims] = useState<any[]>([]);
   const [activePolicies, setActivePolicies] = useState<any[]>([]);
 
@@ -40,7 +40,9 @@ export default function UserDashboard() {
         // Fetch Backend Stats
         try {
           const statsResponse = await api.get('/claims/stats');
+          const profileResponse = await api.get('/auth/profile');
           const backendStats = statsResponse.data;
+          const userProfile = profileResponse.data;
           
           // Fetch Policies and Claims separately to ensure consistency
           const policiesResponse = await api.get('/policies/user/my-policies');
@@ -66,7 +68,7 @@ export default function UserDashboard() {
             activePolicies: myPolicies.length,
             totalClaims: myClaims.length,
             approvedClaims: myClaims.filter((c: any) => c.status === 'approved').length,
-            totalPayouts: backendStats.totalPayouts || 0
+            balance: userProfile.balance || 0
           });
         } catch (backendErr) {
           console.warn("Backend stats fetch failed, using defaults:", backendErr);
@@ -112,8 +114,8 @@ export default function UserDashboard() {
           iconColor="bg-success/10 text-success"
         />
         <StatsCard
-          title="Total Payouts"
-          value={`$${stats.totalPayouts.toString()}`}
+          title="Available Balance"
+          value={`$${stats.balance.toLocaleString()}`}
           icon={DollarSign}
           iconColor="bg-trust/10 text-trust"
         />

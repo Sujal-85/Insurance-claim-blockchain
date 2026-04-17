@@ -92,16 +92,19 @@ export function AdminSidebar() {
             <ChevronLeft className={cn("h-5 w-5 transition-transform", collapsed && "rotate-180")} />
             {!collapsed && <span className="ml-3">Collapse</span>}
           </Button>
-          <Link to="/">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-            >
-              <LogOut className="h-5 w-5" />
-              {!collapsed && <span className="ml-3">Sign Out</span>}
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              localStorage.removeItem("auth_token");
+              localStorage.removeItem("user");
+              window.location.href = "/";
+            }}
+            className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <LogOut className="h-5 w-5" />
+            {!collapsed && <span className="ml-3">Sign Out</span>}
+          </Button>
         </div>
       </div>
     </motion.aside>

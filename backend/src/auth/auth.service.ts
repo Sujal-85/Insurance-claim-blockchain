@@ -2,15 +2,20 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { SignupDto } from './dto/signup.dto';
+import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { BlockchainService } from '../blockchain/blockchain.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private blockchainService: BlockchainService,
   ) {}
 
-  async signup(data: any) {
+  async signup(data: SignupDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -27,13 +32,15 @@ export class AuthService {
         passwordHash: hashedPassword,
         name: data.name,
         role: data.role || 'USER',
+        walletAddress: data.walletAddress,
+        phoneNumber: data.phoneNumber,
       },
     });
 
     return this.generateToken(user);
   }
 
-  async login(data: any) {
+  async login(data: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -52,13 +59,32 @@ export class AuthService {
     }
     
     // Generate a real JWT token for admin
+    const tokenData = this.generateToken(admin);
     return {
-      ...this.generateToken(admin),
+      ...tokenData,
       role: 'ADMIN',
     };
   }
 
-  async getUserProfile(userId: string) {
+  async getUserProfile(userId: string, role?: string) {
+    // If role is ADMIN, or we don't know the role, check Admin collection
+    if (role === 'ADMIN') {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: userId }
+      });
+      if (admin) {
+        return {
+          ...admin,
+          name: 'Administrator',
+          activePolicies: 0,
+          totalClaims: 0,
+          approvalRate: 0,
+          balance: 0
+        };
+      }
+    }
+
+    // Default to User collection
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -72,7 +98,24 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User find failed');
+      // If not found in User and we didn't check Admin yet, try Admin
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: userId }
+      });
+      
+      if (admin) {
+        return {
+          id: admin.id,
+          email: admin.email,
+          name: 'Administrator',
+          role: 'ADMIN',
+          activePolicies: 0,
+          totalClaims: 0,
+          approvalRate: 0,
+          balance: 0
+        };
+      }
+      throw new UnauthorizedException('User profile not found');
     }
 
     // Calculate approval rate
@@ -85,7 +128,63 @@ export class AuthService {
       ...user,
       activePolicies: userAny._count?.userPolicies || 0,
       totalClaims: userAny._count?.claims || 0,
-      approvalRate: userAny._count?.claims > 0 ? Math.round((approvedClaims / userAny._count.claims) * 100) : 0
+      approvalRate: userAny._count?.claims > 0 ? Math.round((approvedClaims / userAny._count.claims) * 100) : 0,
+      balance: user.balance || 0
+    };
+  }
+
+  async withdraw(userId: string, amount: number, walletAddress?: string, signature?: string, message?: string) {
+    if (!amount || amount <= 0) {
+      throw new UnauthorizedException('Invalid withdrawal amount');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if ((user.balance || 0) < amount) {
+      throw new UnauthorizedException(`Insufficient balance. Available: $${user.balance || 0}`);
+    }
+
+    const targetWallet = walletAddress || user.walletAddress;
+    if (!targetWallet) {
+      throw new UnauthorizedException('No wallet address provided or associated with account');
+    }
+
+    // Mandatory signature verification if wallet is linked or provided
+    if (user.walletAddress || walletAddress) {
+      if (!signature || !message) {
+        throw new UnauthorizedException('Blockchain verification signature required for withdrawal');
+      }
+      const isValid = await this.blockchainService.verifySignature(message, signature, targetWallet);
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid blockchain signature. Verification failed.');
+      }
+    }
+
+    // Deduct balance
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        balance: {
+          decrement: amount,
+        },
+      },
+    });
+
+    // Here you would typically trigger a blockchain transaction to send ETH/USDC
+    // For now, we just record the withdrawal
+    console.log(`Withdrawal of $${amount} to wallet ${targetWallet} for user ${user.email}`);
+
+    return {
+      message: 'Withdrawal successful',
+      amount,
+      walletAddress: targetWallet,
+      newBalance: updatedUser.balance,
     };
   }
 
@@ -96,9 +195,36 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        name: user.name || (user.role === 'ADMIN' ? 'Administrator' : 'User'),
         role: user.role,
+        balance: user.balance || 0,
       },
     };
+  }
+  async updateProfile(userId: string, data: UpdateProfileDto, signature?: string, message?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    // If changing wallet address, verify signature of the new address
+    if (data.walletAddress && data.walletAddress !== user.walletAddress) {
+      if (!signature || !message) {
+        throw new UnauthorizedException('Blockchain signature required to link a new wallet address');
+      }
+      const isValid = await this.blockchainService.verifySignature(message, signature, data.walletAddress);
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid blockchain signature for the new wallet address');
+      }
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name,
+        walletAddress: data.walletAddress,
+        phoneNumber: data.phoneNumber,
+        address: data.address,
+      },
+    });
+    return updatedUser;
   }
 }

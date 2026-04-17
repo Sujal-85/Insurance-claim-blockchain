@@ -19,13 +19,29 @@ export class PoliciesService {
     });
   }
 
-  async purchase(userId: string, policyId: string) {
-    const policy = await this.prisma.policy.findUnique({
-      where: { id: policyId },
-    });
+  async purchase(userId: string, policyId: string, signature?: string, message?: string) {
+    const [user, policy] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId } }),
+      this.prisma.policy.findUnique({ where: { id: policyId } }),
+    ]);
 
     if (!policy) {
       throw new Error('Policy not found');
+    }
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Mandatory signature verification if wallet is linked
+    if (user.walletAddress) {
+      if (!signature || !message) {
+        throw new Error('Blockchain verification signature required for this action');
+      }
+      const isValid = await this.blockchainService.verifySignature(message, signature, user.walletAddress);
+      if (!isValid) {
+        throw new Error('Invalid blockchain signature. Verification failed.');
+      }
     }
 
     // Set end date to 1 year from now

@@ -14,6 +14,14 @@ export class PoliciesController {
     return this.policiesService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('user/my-policies')
+  @ApiOperation({ summary: 'Get policies purchased by the user' })
+  async findUserPolicies(@Request() req: any) {
+    return this.policiesService.findUserPolicies(req.user.userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get policy by ID' })
   async findOne(@Param('id') id: string) {
@@ -26,14 +34,6 @@ export class PoliciesController {
   @ApiOperation({ summary: 'Purchase a policy' })
   async purchase(@Param('id') id: string, @Request() req: any) {
     return this.policiesService.purchase(req.user.userId, id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @Get('user/my-policies')
-  @ApiOperation({ summary: 'Get policies purchased by the user' })
-  async findUserPolicies(@Request() req: any) {
-    return this.policiesService.findUserPolicies(req.user.userId);
   }
 
   @Post()

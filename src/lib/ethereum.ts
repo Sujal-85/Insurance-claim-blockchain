@@ -32,8 +32,9 @@ export const getContractWithSigner = async () => {
 export const getContractReadOnly = () => {
   const provider = getProvider();
   if (!provider) {
-    // Fallback to a read-only HTTP provider if MetaMask is not installed
-    const fallbackProvider = new JsonRpcProvider("http://127.0.0.1:8545");
+    // Fallback to Sepolia testnet read-only provider if MetaMask is not installed
+    const sepoliaRpcUrl = import.meta.env.VITE_RPC_URL || "https://rpc.sepolia.org";
+    const fallbackProvider = new JsonRpcProvider(sepoliaRpcUrl);
     return new Contract(CONTRACT_ADDRESS, SecureChainArtifact.abi, fallbackProvider);
   }
   return new Contract(CONTRACT_ADDRESS, SecureChainArtifact.abi, provider);
@@ -48,6 +49,13 @@ export const getSignerAddress = async () => {
   } catch (err) {
     return "";
   }
+};
+
+export const signMessage = async (message: string) => {
+  const provider = getProvider();
+  if (!provider) throw new Error("No wallet found");
+  const signer = await provider.getSigner();
+  return await signer.signMessage(message);
 };
 
 // Add listeners to reload the app when the user switches accounts or networks in MetaMask

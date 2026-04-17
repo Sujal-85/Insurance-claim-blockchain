@@ -24,6 +24,9 @@ export class ClaimsService {
       throw new NotFoundException('Active policy not found for this user');
     }
 
+    // Generate blockchain claim ID if not provided by frontend
+    const blockchainClaimId = createClaimDto.blockchainClaimId || `CLAIM-${Date.now()}`;
+
     const claim = await (this.prisma as any).claim.create({
       data: {
         userId,
@@ -36,15 +39,16 @@ export class ClaimsService {
         status: 'PENDING',
         aiRiskScore: Math.random() * 10,
         blockchainTxHash: createClaimDto.blockchainTxHash,
+        blockchainClaimId: blockchainClaimId,
         blockchainStatus: createClaimDto.blockchainTxHash ? 'CONFIRMED' : 'PENDING',
       },
     });
 
     // Optional: Record claim on blockchain if not already done by frontend
     if (!createClaimDto.blockchainTxHash) {
-      console.log('No frontend hash, attempting backend blockchain submission for claim:', claim.id);
+      console.log('No frontend hash, attempting backend blockchain submission for claim:', blockchainClaimId);
       try {
-        await this.blockchainService.submitClaim(claim.id, createClaimDto.policyId, claim.amount.toString());
+        await this.blockchainService.submitClaim(blockchainClaimId, createClaimDto.policyId, claim.amount.toString());
       } catch (e) {
         console.warn('Blockchain submission failed, but DB record saved:', e.message);
       }
@@ -88,6 +92,32 @@ export class ClaimsService {
         }
       } as any,
     });
+  }
+
+  async findOne(id: string) {
+    const claim = await this.prisma.claim.findUnique({
+      where: { id },
+      include: {
+        user: { 
+          select: { 
+            name: true, 
+            email: true,
+            walletAddress: true 
+          } 
+        },
+        userPolicy: {
+          include: {
+            policy: true
+          }
+        },
+      } as any,
+    });
+
+    if (!claim) {
+      throw new NotFoundException(`Claim with ID ${id} not found`);
+    }
+
+    return claim;
   }
 
   async getStats() {
@@ -152,7 +182,40 @@ export class ClaimsService {
     };
   }
 
-  async updateStatus(id: string, status: any, reason: string) {
+  async updateStatus(
+    id: string,
+    status: any,
+    reason: string,
+    adminId: string,
+    signature?: string,
+    message?: string,
+  ) {
+    // Get claim with user info for payout
+    const claimWithUser = await this.prisma.claim.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!claimWithUser) {
+      throw new NotFoundException(`Claim with ID ${id} not found`);
+    }
+
+    // Verify Admin Signature
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) {
+      throw new Error('Admin not found');
+    }
+
+    if (admin.walletAddress) {
+      if (!signature || !message) {
+        throw new Error('Blockchain verification signature required for admin actions');
+      }
+      const isValid = await this.blockchainService.verifySignature(message, signature, admin.walletAddress);
+      if (!isValid) {
+        throw new Error('Invalid blockchain signature. Verification failed.');
+      }
+    }
+
     const claim = await this.prisma.claim.update({
       where: { id },
       data: { status },
@@ -171,16 +234,41 @@ export class ClaimsService {
       },
     });
 
-    // Update status on blockchain
-    try {
-      const blockchainStatus = status === 'APPROVED' ? 2 : (status === 'REJECTED' ? 3 : 0);
-      if (blockchainStatus !== 0) {
-        await this.blockchainService.processClaim(id, blockchainStatus, reason);
+    // Add payout to user balance if claim is approved
+    if (status === 'APPROVED' && claimWithUser.userId) {
+      try {
+        // Atomic increment of user balance
+        const updatedUser = await this.prisma.user.update({
+          where: { id: claimWithUser.userId },
+          data: {
+            balance: {
+              increment: claim.amount,
+            },
+          },
+          select: { balance: true, email: true }
+        });
+        
+        console.log(`Added $${claim.amount} to user ${updatedUser.email}. New balance: $${updatedUser.balance}`);
+      } catch (e) {
+        console.error('Failed to update user balance:', e.message);
       }
-    } catch (e) {
-      console.warn('Blockchain status update failed:', e.message);
     }
 
-    return claim;
+    // Update status on blockchain using the blockchainClaimId
+    try {
+      const blockchainStatus = status === 'APPROVED' ? 2 : (status === 'REJECTED' ? 3 : 0);
+      if (blockchainStatus !== 0 && claim.blockchainClaimId) {
+        console.log(`Processing claim ${claim.blockchainClaimId} on blockchain with status ${blockchainStatus}`);
+        const tx = await this.blockchainService.processClaim(claim.blockchainClaimId, blockchainStatus, reason);
+        console.log('Blockchain transaction successful:', tx?.hash || (tx as any)?.transactionHash || 'Hash not available');
+      } else {
+        console.warn('Skipping blockchain update: no blockchainClaimId found for claim');
+      }
+    } catch (e) {
+      console.error('Blockchain status update failed:', e.message);
+      // Don't throw - database update is already done
+    }
+
+    return { ...claim, payoutProcessed: status === 'APPROVED' };
   }
 }

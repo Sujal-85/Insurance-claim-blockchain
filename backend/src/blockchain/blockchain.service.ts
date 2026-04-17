@@ -68,6 +68,16 @@ export class BlockchainService implements OnModuleInit {
     }
   }
 
+  async verifySignature(message: string, signature: string, expectedAddress: string): Promise<boolean> {
+    try {
+      const recoveredAddress = ethers.verifyMessage(message, signature);
+      return recoveredAddress.toLowerCase() === expectedAddress.toLowerCase();
+    } catch (error) {
+      console.error('Error verifying signature:', error);
+      return false;
+    }
+  }
+
   async getClaim(claimId: string) {
     if (!this.contract) return null;
     return await this.contract.claims(claimId);

@@ -28,4 +28,8 @@ export class CreateClaimDto {
   @IsString()
   @IsOptional()
   blockchainTxHash?: string;
+
+  @IsString()
+  @IsOptional()
+  blockchainClaimId?: string;
 }

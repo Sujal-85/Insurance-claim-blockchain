@@ -18,4 +18,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Add response interceptor for handle 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/select-role') {
+        window.location.href = '/select-role';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

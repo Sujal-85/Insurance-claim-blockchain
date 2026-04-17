@@ -24,7 +24,7 @@ export default function AdminLogin() {
     try {
       const response = await api.post('/auth/admin-login', { email, password });
       localStorage.setItem('auth_token', response.data.access_token);
-      localStorage.setItem('user_role', 'ADMIN');
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       toast.success("Login successful! Please verify MFA.");
       setStep("mfa");
     } catch (error: any) {
@@ -32,6 +32,19 @@ export default function AdminLogin() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerifyMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // MFA is simulated, so we just proceed
+    setIsLoading(true);
+    toast.success("MFA verified successfully!");
+    
+    // Small delay to ensure localStorage is fully flushed and available for the next route
+    setTimeout(() => {
+      setIsLoading(false);
+      navigate("/admin/dashboard");
+    }, 500);
   };
 
   return (
@@ -127,7 +140,7 @@ export default function AdminLogin() {
                       <Input
                         id="admin-email"
                         type="email"
-                        placeholder="admin@RealtyCheck.com"
+                        placeholder="admin@example.com"
                         className="pl-10 h-12 bg-muted/50"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -188,7 +201,7 @@ export default function AdminLogin() {
                   </p>
                 </GlassCard>
 
-                <form className="space-y-4">
+                <form className="space-y-4" onSubmit={handleVerifyMfa}>
                   <div className="space-y-2">
                     <Label htmlFor="mfa-code">Verification Code</Label>
                     <div className="grid grid-cols-6 gap-2">
@@ -202,11 +215,9 @@ export default function AdminLogin() {
                     </div>
                   </div>
 
-                  <Link to="/admin/dashboard">
-                    <Button className="w-full h-12 bg-security hover:bg-security/90 mt-4">
-                      Verify & Sign In
-                    </Button>
-                  </Link>
+                  <Button type="submit" className="w-full h-12 bg-security hover:bg-security/90 mt-4">
+                    Verify & Sign In
+                  </Button>
 
                   <Button
                     type="button"

@@ -36,9 +36,53 @@ const steps = [
   { number: 4, title: "Review & Submit", description: "Confirm your claim" },
 ];
 
+const incidentTypesByCategory: Record<string, { value: string; label: string }[]> = {
+  Auto: [
+    { value: "accident", label: "Vehicle Accident" },
+    { value: "theft", label: "Theft / Stolen Vehicle" },
+    { value: "vandalism", label: "Vandalism" },
+    { value: "fire", label: "Fire Damage" },
+    { value: "natural_disaster", label: "Natural Disaster (Flood, Storm)" },
+    { value: "collision", label: "Collision" },
+  ],
+  Health: [
+    { value: "medical_emergency", label: "Medical Emergency" },
+    { value: "hospitalization", label: "Hospitalization" },
+    { value: "surgery", label: "Surgery" },
+    { value: "accident", label: "Accident Injury" },
+    { value: "illness", label: "Critical Illness" },
+  ],
+  Property: [
+    { value: "fire", label: "Fire Damage" },
+    { value: "flood", label: "Flood Damage" },
+    { value: "theft", label: "Theft / Burglary" },
+    { value: "vandalism", label: "Vandalism" },
+    { value: "natural_disaster", label: "Natural Disaster" },
+    { value: "water_damage", label: "Water Damage" },
+  ],
+  Life: [
+    { value: "death", label: "Death" },
+    { value: "disability", label: "Permanent Disability" },
+    { value: "critical_illness", label: "Critical Illness Diagnosis" },
+  ],
+  Travel: [
+    { value: "trip_cancellation", label: "Trip Cancellation" },
+    { value: "medical_emergency", label: "Medical Emergency Abroad" },
+    { value: "lost_baggage", label: "Lost / Delayed Baggage" },
+    { value: "flight_delay", label: "Flight Delay / Cancellation" },
+    { value: "theft", label: "Theft During Travel" },
+  ],
+  default: [
+    { value: "accident", label: "Accident" },
+    { value: "theft", label: "Theft" },
+    { value: "damage", label: "Damage" },
+    { value: "other", label: "Other" },
+  ],
+};
+
 export default function SubmitClaim() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{name: string, size: string, type: string, content: string}[]>([]);
   const [userPolicies, setUserPolicies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPolicyLoading, setIsPolicyLoading] = useState(true);
@@ -68,17 +112,61 @@ export default function SubmitClaim() {
     fetchUserPolicies();
   }, []);
 
-  const addFile = () => {
-    setUploadedFiles([...uploadedFiles, `document-${uploadedFiles.length + 1}.pdf`]);
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setUploadedFiles(prev => [...prev, {
+          name: file.name,
+          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+          type: file.type.includes('pdf') ? 'pdf' : 'image',
+          content: base64String
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const removeFile = (index: number) => {
     setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
   };
 
+  const getSelectedPolicy = () => {
+    return userPolicies.find((up) => up.policy.id === formData.policyId)?.policy;
+  };
+
+  const validateClaimAmount = () => {
+    const policy = getSelectedPolicy();
+    if (!policy) return { valid: false, message: "Please select a policy" };
+    
+    if (!formData.amount || formData.amount <= 0) {
+      return { valid: false, message: "Please enter a valid claim amount" };
+    }
+    
+    if (formData.amount > policy.coverageAmount) {
+      return { 
+        valid: false, 
+        message: `Claim amount ($${formData.amount.toLocaleString()}) exceeds policy coverage ($${policy.coverageAmount.toLocaleString()})` 
+      };
+    }
+    
+    return { valid: true, message: "" };
+  };
+
   const handleSubmit = async () => {
+    const validation = validateClaimAmount();
+    if (!validation.valid) {
+      toast.error(validation.message);
+      return;
+    }
+
     setIsLoading(true);
     let txHash = "";
+    let blockchainClaimId = "";
 
     try {
       if (typeof window.ethereum !== 'undefined') {
@@ -93,7 +181,7 @@ export default function SubmitClaim() {
 
           toast.info("Please confirm the transaction in MetaMask...");
           
-          const blockchainClaimId = `CLAIM-${Date.now()}`;
+          blockchainClaimId = `CLAIM-${Date.now()}`;
           const amountInWei = ethers.parseEther(formData.amount.toString() || "0");
 
           const tx = await contract.submitClaim(
@@ -129,21 +217,25 @@ export default function SubmitClaim() {
         incidentType: String(formData.incidentType || "accident"),
         incidentDate: formData.incidentDate ? new Date(formData.incidentDate).toISOString() : new Date().toISOString(),
         location: String(formData.location || "Unknown"),
-        blockchainTxHash: txHash || undefined
+        blockchainTxHash: txHash || undefined,
+        blockchainClaimId: blockchainClaimId || undefined
       };
-
-      console.log("Submitting claim to backend with payload:", JSON.stringify(payload, null, 2));
 
       try {
         const response = await api.post('/claims', payload);
-        console.log("Backend response:", response.data);
+        const newClaim = response.data.claim;
+        
+        // Save documents to localStorage associated with the claim ID
+        if (uploadedFiles.length > 0) {
+          localStorage.setItem(`claim_docs_${newClaim.id}`, JSON.stringify(uploadedFiles));
+        }
+
         toast.success("Claim submitted successfully!");
         setCurrentStep(4);
       } catch (error: any) {
-        console.error("FULL ERROR OBJECT:", error);
+        console.error("Backend Error:", error);
         const backendMessage = error.response?.data?.message;
-        const displayMessage = Array.isArray(backendMessage) ? backendMessage.join(", ") : backendMessage;
-        toast.error(displayMessage || "Failed to submit claim. Please check your data.");
+        toast.error(backendMessage || "Failed to submit claim.");
       }
     } catch (error: any) {
       console.error("Error in handleSubmit:", error);
@@ -206,7 +298,7 @@ export default function SubmitClaim() {
                     userPolicies.map((up) => (
                       <div
                         key={up.id}
-                        onClick={() => setFormData({ ...formData, policyId: up.policy.id })}
+                        onClick={() => setFormData({ ...formData, policyId: up.policy.id, incidentType: "" })}
                         className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                           formData.policyId === up.policy.id
                             ? "border-primary bg-primary/5 shadow-md"
@@ -257,15 +349,21 @@ export default function SubmitClaim() {
                         onValueChange={(value) => setFormData({ ...formData, incidentType: value })}
                       >
                         <SelectTrigger className="h-12 bg-muted/50">
-                          <SelectValue placeholder="Select type" />
+                          <SelectValue placeholder={getSelectedPolicy() ? "Select type" : "Select a policy first"} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="accident">Vehicle Accident</SelectItem>
-                          <SelectItem value="theft">Theft</SelectItem>
-                          <SelectItem value="damage">Property Damage</SelectItem>
-                          <SelectItem value="medical">Medical Emergency</SelectItem>
+                          {(incidentTypesByCategory[getSelectedPolicy()?.category] || incidentTypesByCategory.default).map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
+                      {getSelectedPolicy() && (
+                        <p className="text-xs text-muted-foreground">
+                          Based on {getSelectedPolicy()?.category} policy
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Incident Date</Label>
@@ -282,17 +380,30 @@ export default function SubmitClaim() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Claim Amount</Label>
+                    <div className="flex justify-between items-center">
+                      <Label>Claim Amount</Label>
+                      {getSelectedPolicy() && (
+                        <span className="text-xs text-muted-foreground">
+                          Max: ${getSelectedPolicy()?.coverageAmount?.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input 
                         type="number" 
                         placeholder="Enter amount" 
-                        className="pl-10 h-12 bg-muted/50" 
+                        className={`pl-10 h-12 bg-muted/50 ${formData.amount > (getSelectedPolicy()?.coverageAmount || 0) && formData.amount > 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                         value={formData.amount || ''}
                         onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
                       />
                     </div>
+                    {formData.amount > (getSelectedPolicy()?.coverageAmount || 0) && formData.amount > 0 && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Amount exceeds policy coverage of ${getSelectedPolicy()?.coverageAmount?.toLocaleString()}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -329,9 +440,14 @@ export default function SubmitClaim() {
               <GlassCard variant="elevated">
                 <h2 className="text-xl font-display font-semibold mb-6">Upload Documentation</h2>
                 <div
-                  onClick={addFile}
-                  className="border-2 border-dashed border-primary/30 rounded-2xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all mb-6"
+                  className="border-2 border-dashed border-primary/30 rounded-2xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all mb-6 relative"
                 >
+                  <input
+                    type="file"
+                    multiple
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={handleFileUpload}
+                  />
                   <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                     <Upload className="h-8 w-8 text-primary" />
                   </div>
@@ -352,11 +468,11 @@ export default function SubmitClaim() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            {file.endsWith('.pdf') ? <File className="h-5 w-5 text-primary" /> : <Image className="h-5 w-5 text-primary" />}
+                            {file.type === 'pdf' ? <File className="h-5 w-5 text-primary" /> : <Image className="h-5 w-5 text-primary" />}
                           </div>
                           <div>
-                            <p className="font-medium text-sm">{file}</p>
-                            <p className="text-xs text-muted-foreground">2.4 MB</p>
+                            <p className="font-medium text-sm">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{file.size}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -432,7 +548,7 @@ export default function SubmitClaim() {
                     <div className="flex flex-wrap gap-2">
                       {uploadedFiles.map((file, i) => (
                         <span key={i} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm">
-                          {file}
+                          {file.name}
                         </span>
                       ))}
                     </div>
@@ -469,7 +585,16 @@ export default function SubmitClaim() {
 
           {currentStep < 4 ? (
             <Button
-              onClick={() => setCurrentStep(Math.min(4, currentStep + 1))}
+              onClick={() => {
+                if (currentStep === 2) {
+                  const validation = validateClaimAmount();
+                  if (!validation.valid) {
+                    toast.error(validation.message);
+                    return;
+                  }
+                }
+                setCurrentStep(Math.min(4, currentStep + 1));
+              }}
               disabled={currentStep === 1 && !formData.policyId}
               className="bg-primary hover:bg-primary/90"
             >

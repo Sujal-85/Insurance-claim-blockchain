@@ -25,12 +25,16 @@ export class ClaimsController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get()
   @ApiOperation({ summary: 'Get all claims (Admin view)' })
   async findAll() {
     return this.claimsService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('stats')
   @ApiOperation({ summary: 'Get claims statistics (Analytics)' })
   async getStats() {
@@ -45,13 +49,26 @@ export class ClaimsController {
     return this.claimsService.findUserClaims(req.user.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get(':id')
+  @ApiOperation({ summary: 'Get claim by ID' })
+  async findOne(@Param('id') id: string) {
+    return this.claimsService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post(':id/status')
   @ApiOperation({ summary: 'Update claim status (Admin action)' })
   async updateStatus(
     @Param('id') id: string,
     @Body('status') status: string,
     @Body('reason') reason: string,
+    @Body('signature') signature: string,
+    @Body('message') message: string,
+    @Request() req: any,
   ) {
-    return this.claimsService.updateStatus(id, status, reason);
+    return this.claimsService.updateStatus(id, status, reason, req.user.userId, signature, message);
   }
 }

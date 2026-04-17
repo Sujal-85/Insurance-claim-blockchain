@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Shield, Link, Lock } from "lucide-react";
+import { Shield, Link, Lock, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface BlockchainBadgeProps {
@@ -24,10 +24,15 @@ const badgeConfig = {
     label: "On-Chain Record",
     gradient: "bg-secondary",
   },
+  pending: {
+    icon: Clock,
+    label: "Verification Pending",
+    gradient: "bg-muted text-muted-foreground",
+  },
 };
 
 export function BlockchainBadge({ type = "verified", label, className }: BlockchainBadgeProps) {
-  const config = badgeConfig[type];
+  const config = badgeConfig[type as keyof typeof badgeConfig] || badgeConfig.pending;
   const Icon = config.icon;
   const displayLabel = label || config.label;
 

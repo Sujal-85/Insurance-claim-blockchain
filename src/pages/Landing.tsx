@@ -118,9 +118,9 @@ export default function Landing() {
             >
               <BlockchainBadge type="verified" className="mx-auto" />
               
-              <h1 className="text-5xl md:text-7xl font-display font-bold leading-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold leading-tight">
                 Insurance Claims on the{" "}
-                <span className="gradient-text">Blockchain</span>
+                <span className="gradient-text text-black">Blockchain</span>
               </h1>
               
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -416,6 +416,9 @@ export default function Landing() {
             </p>
             
             <div className="flex items-center gap-6">
+              <Link to="/health-safety" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Santé & Sécurité
+              </Link>
               <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Privacy
               </a>
