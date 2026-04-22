@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Shield,
   FileText,
-  DollarSign,
+  IndianRupee,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -296,7 +296,7 @@ export default function UserNotifications() {
         <TabsContent value="payments">
           <GlassCard className="text-center py-20 border-dashed">
             <div className="mx-auto w-24 h-24 bg-success/10 rounded-full flex items-center justify-center mb-6">
-              <DollarSign className="h-10 w-10 text-success/60" />
+              <IndianRupee className="h-10 w-10 text-success/60" />
             </div>
             <h3 className="text-xl font-bold mb-2">No Payment Activity</h3>
             <p className="text-muted-foreground max-w-sm mx-auto">

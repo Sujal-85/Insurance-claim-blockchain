@@ -15,7 +15,7 @@ import {
   ArrowLeft,
   FileText,
   Calendar,
-  DollarSign,
+  IndianRupee,
   MapPin,
   Clock,
   CheckCircle,
@@ -29,6 +29,7 @@ import {
   File,
   AlertCircle,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 export default function ClaimDetails() {
   const { id } = useParams();
@@ -51,8 +52,19 @@ export default function ClaimDetails() {
           setDocuments(JSON.parse(storedDocs));
         }
 
-        // Trigger AI analysis
-        performAIAnalysis(response.data);
+        // Check if AI analysis already exists from backend
+        if (response.data.aiVerification) {
+          console.log("Using backend AI analysis:", response.data.aiVerification);
+          setAiAnalysis({
+            authenticity: response.data.aiVerification.authenticity,
+            policyCoverage: response.data.aiVerification.policyCoverage,
+            riskScore: response.data.aiVerification.fraudScore,
+            analysis: response.data.aiVerification.explanation
+          });
+        } else {
+          // Trigger frontend AI analysis as fallback for legacy claims
+          performAIAnalysis(response.data);
+        }
       } catch (error) {
         console.error("Error fetching claim details:", error);
         toast.error("Failed to load claim details");
@@ -169,10 +181,10 @@ export default function ClaimDetails() {
             
             <div className="grid md:grid-cols-2 gap-4 mb-6">
               <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30">
-                <DollarSign className="h-5 w-5 text-primary" />
+                <IndianRupee className="h-5 w-5 text-primary" />
                 <div>
                   <p className="text-sm text-muted-foreground">Requested Amount</p>
-                  <p className="text-xl font-bold">${claim.amount.toLocaleString()}</p>
+                  <p className="text-xl font-bold">{formatCurrency(claim.amount)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30">
@@ -222,22 +234,38 @@ export default function ClaimDetails() {
                 ) : aiAnalysis ? (
                   <>
                     <div className="grid md:grid-cols-3 gap-4 mb-4">
-                      <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                      <div className={`p-3 rounded-lg border ${
+                        aiAnalysis.authenticity?.toLowerCase().includes('verified') 
+                          ? 'bg-success/10 border-success/20 text-success' 
+                          : 'bg-destructive/10 border-destructive/20 text-destructive'
+                      }`}>
                         <p className="text-xs text-muted-foreground mb-1">Authenticity</p>
-                        <p className="font-semibold text-success">{aiAnalysis.authenticity}</p>
+                        <p className="font-semibold">{aiAnalysis.authenticity}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                      <div className={`p-3 rounded-lg border ${
+                        aiAnalysis.policyCoverage?.toLowerCase().includes('eligible') 
+                          ? 'bg-success/10 border-success/20 text-success' 
+                          : 'bg-warning/10 border-warning/20 text-warning'
+                      }`}>
                         <p className="text-xs text-muted-foreground mb-1">Policy Coverage</p>
-                        <p className="font-semibold text-success">{aiAnalysis.policyCoverage}</p>
+                        <p className="font-semibold">{aiAnalysis.policyCoverage}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+                      <div className={`p-3 rounded-lg border ${
+                        aiAnalysis.riskScore < 30 
+                          ? 'bg-success/10 border-success/20 text-success' 
+                          : aiAnalysis.riskScore < 70 
+                            ? 'bg-warning/10 border-warning/20 text-warning' 
+                            : 'bg-destructive/10 border-destructive/20 text-destructive'
+                      }`}>
                         <p className="text-xs text-muted-foreground mb-1">Risk Score</p>
-                        <p className="font-semibold text-warning">{aiAnalysis.riskScore}/100</p>
+                        <p className="font-semibold">{aiAnalysis.riskScore}/100</p>
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {aiAnalysis.analysis}
-                    </p>
+                    <div className="p-4 rounded-xl bg-muted/20 border border-muted/30">
+                      <p className="text-sm leading-relaxed italic text-foreground/80">
+                        "{aiAnalysis.analysis}"
+                      </p>
+                    </div>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">Analysis not yet performed.</p>

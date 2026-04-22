@@ -16,7 +16,8 @@ import {
   AreaChart,
   Area
 } from "recharts";
-import { TrendingUp, FileStack, DollarSign, Activity, ShieldCheck, Clock, AlertTriangle } from "lucide-react";
+import { TrendingUp, FileStack, IndianRupee, Activity, ShieldCheck, Clock, AlertTriangle } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
@@ -68,7 +69,7 @@ export default function AdminAnalytics() {
       <div className="grid md:grid-cols-4 gap-6 mb-8">
         <StatsCard title="Total Claims" value={stats.totalClaims.toLocaleString()} icon={FileStack} change={{ value: 12, trend: "up" }} />
         <StatsCard title="Approval Rate" value={`${Math.round(stats.approvalRate)}%`} icon={ShieldCheck} iconColor="bg-success/10 text-success" />
-        <StatsCard title="Total Payouts" value={`$${(stats.totalPayouts / 1000).toFixed(1)}k`} icon={DollarSign} change={{ value: 8, trend: "up" }} />
+        <StatsCard title="Total Payouts" value={formatCurrency(stats.totalPayouts)} icon={IndianRupee} change={{ value: 8, trend: "up" }} />
         <StatsCard title="Avg. AI Confidence" value={`${Math.round(stats.avgAIConfidence)}%`} icon={Activity} iconColor="bg-primary/10 text-primary" />
       </div>
 
@@ -110,7 +111,7 @@ export default function AdminAnalytics() {
         <GlassCard variant="elevated" className="min-h-[400px]">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-bold text-lg flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-success" />
+              <IndianRupee className="h-5 w-5 text-success" />
               Payout Distribution
             </h3>
           </div>
@@ -118,9 +119,9 @@ export default function AdminAnalytics() {
             <LineChart data={stats.monthlyData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-              <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => `$${value/1000}k`} />
+              <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => `₹${value >= 1000 ? (value/1000).toFixed(0) + 'k' : value}`} />
               <Tooltip 
-                formatter={(value: number) => [`$${value.toLocaleString()}`, "Total Payout"]}
+                formatter={(value: number) => [formatCurrency(value), "Total Payout"]}
                 contentStyle={{ 
                   backgroundColor: "hsl(var(--card))", 
                   borderColor: "hsl(var(--border))",

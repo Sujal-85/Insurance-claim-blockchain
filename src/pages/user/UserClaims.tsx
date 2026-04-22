@@ -21,6 +21,7 @@ import {
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 
 const statusIcons = {
   pending: Clock,
@@ -43,7 +44,7 @@ export default function UserClaims() {
           id: claim.id,
           type: claim.userPolicy?.policy?.policyName || "Insurance Claim",
           description: claim.description || "Incident reported",
-          amount: `$${claim.amount.toLocaleString()}`,
+          amount: formatCurrency(claim.amount),
           status: claim.status.toLowerCase(),
           date: new Date(claim.createdAt).toLocaleDateString(),
           policyId: claim.userPolicy?.policy?.id || "N/A",

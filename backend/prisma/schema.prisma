@@ -116,12 +116,15 @@ model Document {
 }
 
 model AI_Verification {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  claim       Claim    @relation(fields: [claimId], references: [id])
-  claimId     String   @unique @db.ObjectId
-  fraudScore  Float
-  explanation String
-  createdAt   DateTime @default(now())
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  claim           Claim    @relation(fields: [claimId], references: [id])
+  claimId         String   @unique @db.ObjectId
+  fraudScore      Float
+  authenticity    String   @default("Verified")
+  policyCoverage  String   @default("Eligible")
+  explanation     String
+  adminNotes      String?
+  createdAt       DateTime @default(now())
 }
 
 model Audit_Log {

@@ -16,8 +16,9 @@ import {
   Shield,
   ArrowRight,
   Calendar,
-  DollarSign,
+  IndianRupee,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 import { useState, useEffect } from "react";
 import { getContractReadOnly, getSignerAddress } from "@/lib/ethereum";
@@ -48,7 +49,7 @@ export default function UserDashboard() {
           const policiesResponse = await api.get('/policies/user/my-policies');
           const myPolicies = policiesResponse.data.map((up: any) => ({
             name: up.policy?.policyName || "Insurance Policy",
-            coverage: `$${up.policy?.coverageAmount?.toLocaleString() || '0'}`,
+            coverage: formatCurrency(up.policy?.coverageAmount || 0),
             expires: new Date(up.endDate).toLocaleDateString()
           }));
           setActivePolicies(myPolicies);
@@ -57,7 +58,7 @@ export default function UserDashboard() {
           const myClaims = claimsResponse.data.map((claim: any) => ({
             id: claim.id,
             type: claim.incidentType || "Blockchain Claim",
-            amount: `$${claim.amount?.toLocaleString() || '0'}`,
+            amount: formatCurrency(claim.amount || 0),
             status: claim.status.toLowerCase(),
             date: new Date(claim.createdAt).toLocaleDateString()
           }));
@@ -115,8 +116,8 @@ export default function UserDashboard() {
         />
         <StatsCard
           title="Available Balance"
-          value={`$${stats.balance.toLocaleString()}`}
-          icon={DollarSign}
+          value={formatCurrency(stats.balance)}
+          icon={IndianRupee}
           iconColor="bg-trust/10 text-trust"
         />
       </div>

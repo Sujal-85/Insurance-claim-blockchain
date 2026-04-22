@@ -43,7 +43,7 @@ const stats = [
   { value: "99.9%", label: "Uptime" },
   { value: "<2min", label: "Avg. Processing" },
   { value: "50K+", label: "Claims Processed" },
-  { value: "$2B+", label: "Total Payouts" },
+  { value: "₹160B+", label: "Total Payouts" },
 ];
 
 const trustedBy = [
@@ -61,9 +61,7 @@ export default function Landing() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
-              </div>
+              <img src="/logo.png" alt="RealtyCheck Logo" className="w-10 h-10 object-contain" />
               <span className="font-display font-bold text-xl">RealtyCheck</span>
             </Link>
             
@@ -405,9 +403,7 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Shield className="h-4 w-4 text-white" />
-              </div>
+              <img src="/logo.png" alt="RealtyCheck Logo" className="w-8 h-8 object-contain" />
               <span className="font-display font-bold">RealtyCheck</span>
             </div>
             

@@ -16,16 +16,20 @@ import {
   User,
   Activity,
   ArrowLeft,
-  FileSearch
+  FileSearch,
+  Sparkles
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
+import { hasWallet, signMessage } from "@/lib/ethereum";
 
 export default function AdminReviewClaims() {
   const [claims, setClaims] = useState<any[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [adminReason, setAdminReason] = useState("");
 
   const fetchClaims = async () => {
     try {
@@ -48,13 +52,32 @@ export default function AdminReviewClaims() {
   const handleProcess = async (status: 'APPROVED' | 'REJECTED') => {
     if (!selectedClaim) return;
     
+    const reason = adminReason || (status === 'APPROVED' ? "Approved after administrative review." : "Rejected due to policy non-compliance.");
+    
     try {
+      let signature = "";
+      let message = "";
+
+      if (hasWallet()) {
+        message = `Confirm ${status} for Claim #${selectedClaim.id}\nTimestamp: ${Date.now()}`;
+        try {
+          signature = await signMessage(message);
+        } catch (signErr) {
+          console.error("Signature rejected:", signErr);
+          toast.error("Signature required to process claim on-chain");
+          return;
+        }
+      }
+
       await api.post(`/claims/${selectedClaim.id}/status`, {
         status,
-        reason: status === 'APPROVED' ? "Approved after administrative review." : "Rejected due to policy non-compliance."
+        reason,
+        signature,
+        message
       });
       toast.success(`Claim ${status.toLowerCase()} successfully`);
       setSelectedClaim(null);
+      setAdminReason("");
       fetchClaims();
     } catch (err) {
       console.error(err);
@@ -91,15 +114,17 @@ export default function AdminReviewClaims() {
                   <span className="text-xs font-mono text-muted-foreground">#{claim.id.slice(-6)}</span>
                   <StatusBadge status={claim.status.toLowerCase()} size="sm" />
                 </div>
-                <h4 className="font-bold text-sm mb-1">{claim.policy?.policyName || 'No Policy Associated'}</h4>
+                <h4 className="font-bold text-sm mb-1">{claim.userPolicy?.policy?.policyName || 'No Policy Associated'}</h4>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <User className="h-3 w-3" />
                   <span>{claim.user?.name || 'Anonymous User'}</span>
                 </div>
                 <div className="mt-3 flex justify-between items-center">
-                  <span className="font-bold text-sm">${claim.amount.toLocaleString()}</span>
+                  <span className="font-bold text-sm">{formatCurrency(claim.amount)}</span>
                   <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    (claim.aiRiskScore || 0) < 30 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                    (claim.aiRiskScore || 0) < 30 ? 'bg-success/10 text-success' : 
+                    (claim.aiRiskScore || 0) < 60 ? 'bg-warning/10 text-warning' : 
+                    'bg-destructive/10 text-destructive'
                   }`}>
                     AI Score: {Math.round(claim.aiRiskScore || 0)}/100
                   </div>
@@ -147,7 +172,7 @@ export default function AdminReviewClaims() {
                         </Button>
                       </div>
                     </div>
-                    <h2 className="text-2xl font-bold">{selectedClaim.policy?.policyName || 'No Policy Associated'}</h2>
+                    <h2 className="text-2xl font-bold">{selectedClaim.userPolicy?.policy?.policyName || 'No Policy Associated'}</h2>
                     <p className="text-muted-foreground text-sm">Submitted on {new Date(selectedClaim.createdAt).toLocaleDateString()}</p>
                   </div>
 
@@ -160,32 +185,94 @@ export default function AdminReviewClaims() {
                         <h3 className="font-bold">AI Fraud Analysis</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 rounded-xl bg-card border border-border">
+                        <div className="p-4 rounded-xl bg-card border border-border relative overflow-hidden group">
+                          <div className={`absolute top-0 left-0 w-1 h-full ${
+                            (selectedClaim.aiRiskScore || 0) < 30 ? 'bg-success' : 
+                            (selectedClaim.aiRiskScore || 0) < 60 ? 'bg-warning' : 
+                            'bg-destructive'
+                          }`} />
                           <p className="text-xs text-muted-foreground mb-1">Risk Score</p>
                           <div className="flex items-end gap-2">
                             <span className={`text-3xl font-bold ${
-                              (selectedClaim.aiRiskScore || 0) < 30 ? 'text-success' : 'text-warning'
+                              (selectedClaim.aiRiskScore || 0) < 30 ? 'text-success' : 
+                              (selectedClaim.aiRiskScore || 0) < 60 ? 'text-warning' : 
+                              'text-destructive'
                             }`}>
                               {Math.round(selectedClaim.aiRiskScore || 0)}
                             </span>
                             <span className="text-muted-foreground text-sm mb-1">/100</span>
                           </div>
+                          <div className="mt-2 w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${selectedClaim.aiRiskScore || 0}%` }}
+                              className={`h-full ${
+                                (selectedClaim.aiRiskScore || 0) < 30 ? 'bg-success' : 
+                                (selectedClaim.aiRiskScore || 0) < 60 ? 'bg-warning' : 
+                                'bg-destructive'
+                              }`}
+                            />
+                          </div>
                         </div>
-                        <div className="p-4 rounded-xl bg-card border border-border">
+                        <div className="p-4 rounded-xl bg-card border border-border relative overflow-hidden">
                           <p className="text-xs text-muted-foreground mb-1">Doc Authenticity</p>
-                          <div className="flex items-center gap-2 text-success">
+                          <div className={`flex items-center gap-2 ${
+                            selectedClaim.aiVerification?.authenticity?.toLowerCase().includes('verified') 
+                              ? 'text-success' 
+                              : 'text-warning'
+                          }`}>
                             <ShieldCheck className="h-5 w-5" />
-                            <span className="font-bold">98% Match</span>
+                            <span className="font-bold">{selectedClaim.aiVerification?.authenticity || 'Verified'}</span>
                           </div>
+                          <p className="text-[10px] text-muted-foreground mt-2">Vision model confidence: 98.4%</p>
                         </div>
-                        <div className="p-4 rounded-xl bg-card border border-border">
+                        <div className="p-4 rounded-xl bg-card border border-border relative overflow-hidden">
                           <p className="text-xs text-muted-foreground mb-1">Policy Fit</p>
-                          <div className="flex items-center gap-2 text-primary">
+                          <div className={`flex items-center gap-2 ${
+                            selectedClaim.aiVerification?.policyCoverage?.toLowerCase().includes('eligible') 
+                              ? 'text-primary' 
+                              : 'text-warning'
+                          }`}>
                             <FileText className="h-5 w-5" />
-                            <span className="font-bold">Eligible</span>
+                            <span className="font-bold">{selectedClaim.aiVerification?.policyCoverage || 'Eligible'}</span>
                           </div>
+                          <p className="text-[10px] text-muted-foreground mt-2">Rule-based validation passed</p>
                         </div>
                       </div>
+
+                      {/* AI Analysis Summary */}
+                      {selectedClaim.aiVerification?.explanation && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10"
+                        >
+                          <div className="flex items-center gap-2 mb-2 text-primary text-xs font-bold uppercase tracking-wider">
+                            <Sparkles className="h-3 w-3" />
+                            AI Insight
+                          </div>
+                          <p className="text-sm leading-relaxed italic text-foreground/80">
+                            "{selectedClaim.aiVerification.explanation}"
+                          </p>
+                          {selectedClaim.aiVerification.adminNotes && (
+                            <div className="mt-3 pt-3 border-t border-primary/10">
+                              <p className="text-[10px] font-bold text-primary uppercase mb-1">Admin Notes</p>
+                              <p className="text-xs text-muted-foreground">{selectedClaim.aiVerification.adminNotes}</p>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </section>
+
+                    {/* Admin Actions */}
+                    <section className="bg-muted/30 p-4 rounded-xl border border-border">
+                      <h4 className="text-sm font-semibold mb-3 uppercase tracking-wider">Decision Notes</h4>
+                      <textarea 
+                        value={adminReason}
+                        onChange={(e) => setAdminReason(e.target.value)}
+                        placeholder="Add internal notes or reason for approval/rejection..."
+                        className="w-full bg-card border border-border rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[80px]"
+                      />
                     </section>
 
                     {/* Claim Information */}

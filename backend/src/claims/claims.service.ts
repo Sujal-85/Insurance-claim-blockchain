@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { AIService } from './ai.service';
 
 @Injectable()
 export class ClaimsService {
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
+    private aiService: AIService,
   ) {}
 
   async create(userId: string, createClaimDto: CreateClaimDto) {
@@ -24,6 +26,14 @@ export class ClaimsService {
       throw new NotFoundException('Active policy not found for this user');
     }
 
+    // Perform Full AI Analysis
+    const analysis = await this.aiService.getClaimAnalysis(
+      createClaimDto.description,
+      createClaimDto.amount,
+      createClaimDto.incidentType,
+      createClaimDto.location,
+    );
+
     // Generate blockchain claim ID if not provided by frontend
     const blockchainClaimId = createClaimDto.blockchainClaimId || `CLAIM-${Date.now()}`;
 
@@ -37,11 +47,22 @@ export class ClaimsService {
         incidentDate: new Date(createClaimDto.incidentDate),
         location: createClaimDto.location,
         status: 'PENDING',
-        aiRiskScore: Math.random() * 10,
+        aiRiskScore: analysis.riskScore,
         blockchainTxHash: createClaimDto.blockchainTxHash,
         blockchainClaimId: blockchainClaimId,
         blockchainStatus: createClaimDto.blockchainTxHash ? 'CONFIRMED' : 'PENDING',
+        aiVerification: {
+          create: {
+            fraudScore: analysis.riskScore,
+            authenticity: analysis.authenticity,
+            policyCoverage: analysis.policyCoverage,
+            explanation: analysis.analysis,
+          }
+        }
       },
+      include: {
+        aiVerification: true
+      }
     });
 
     // Optional: Record claim on blockchain if not already done by frontend
@@ -77,6 +98,7 @@ export class ClaimsService {
             policy: true
           }
         },
+        aiVerification: true,
       } as any,
     });
   }
@@ -89,7 +111,8 @@ export class ClaimsService {
           include: {
             policy: true
           }
-        }
+        },
+        aiVerification: true
       } as any,
     });
   }
@@ -110,6 +133,7 @@ export class ClaimsService {
             policy: true
           }
         },
+        aiVerification: true,
       } as any,
     });
 
@@ -227,10 +251,11 @@ export class ClaimsService {
       create: {
         claimId: id,
         fraudScore: claim.aiRiskScore || 0,
-        explanation: reason,
+        explanation: 'Manual Review',
+        adminNotes: reason,
       },
       update: {
-        explanation: reason,
+        adminNotes: reason,
       },
     });
 

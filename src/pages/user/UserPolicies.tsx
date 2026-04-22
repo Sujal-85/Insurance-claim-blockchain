@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { getSignerAddress } from "@/lib/ethereum";
+import { formatCurrency } from "@/lib/utils";
 
 export default function UserPolicies() {
   const [policies, setPolicies] = useState<any[]>([]);
@@ -146,11 +147,11 @@ export default function UserPolicies() {
                       <div className="space-y-3 mb-6 pt-4 border-t border-border">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Coverage</span>
-                          <span className="font-bold">${policy.coverageAmount.toLocaleString()}</span>
+                          <span className="font-bold">{formatCurrency(policy.coverageAmount)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Premium</span>
-                          <span className="font-bold text-primary">${policy.premium}/mo</span>
+                          <span className="font-bold text-primary">{formatCurrency(policy.premium)}/mo</span>
                         </div>
                       </div>
 
@@ -196,7 +197,7 @@ export default function UserPolicies() {
                     <div className="grid grid-cols-2 gap-4 my-6 p-3 bg-muted/20 rounded-lg">
                       <div>
                         <p className="text-[10px] text-muted-foreground uppercase">Coverage</p>
-                        <p className="font-bold text-sm">${userPolicy.policy.coverageAmount.toLocaleString()}</p>
+                        <p className="font-bold text-sm">{formatCurrency(userPolicy.policy.coverageAmount)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground uppercase">ID</p>

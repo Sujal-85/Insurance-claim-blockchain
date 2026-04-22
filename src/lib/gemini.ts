@@ -5,6 +5,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 export async function analyzeClaim(claimData: any) {
   if (!API_KEY) {
+    console.warn("Gemini API Key is missing. Using mock data.");
     return {
       authenticity: "Verified ✓",
       policyCoverage: "Eligible ✓",
@@ -14,45 +15,64 @@ export async function analyzeClaim(claimData: any) {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Using gemini-3-flash-preview as it's confirmed working in test.ts
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
     const prompt = `
       Analyze the following insurance claim for potential fraud and policy alignment:
       Claim ID: ${claimData.id}
       Incident Type: ${claimData.incidentType}
       Date: ${claimData.incidentDate}
-      Amount: $${claimData.amount}
+      Amount: ${claimData.amount}
       Description: ${claimData.description}
       Location: ${claimData.location}
 
-      Return a JSON object with the following fields:
-      - authenticity: (string) status like "Verified" or "Flagged"
-      - policyCoverage: (string) status like "Eligible" or "Requires Review"
-      - riskScore: (number) 0-100 indicating risk
-      - analysis: (string) a brief 2-sentence summary of the analysis.
+      IMPORTANT: Return ONLY a valid JSON object. Do not include any markdown formatting like \`\`\`json.
+      
+      The JSON object should have these exact fields:
+      {
+        "authenticity": "string (e.g., 'Verified', 'Flagged', 'Highly Suspicious')",
+        "policyCoverage": "string (e.g., 'Eligible', 'Requires Review', 'Not Covered')",
+        "riskScore": number (0-100),
+        "analysis": "string (a brief 2-sentence summary)"
+      }
     `;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
     
-    // Clean JSON if needed
-    const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
-    const parsed = JSON.parse(jsonStr);
+    console.log("Gemini Raw Response:", text);
 
-    return {
-      authenticity: parsed.authenticity || "Pending",
-      policyCoverage: parsed.policyCoverage || "Pending",
-      riskScore: parsed.riskScore || 0,
-      analysis: parsed.analysis || "Analysis complete."
-    };
-  } catch (error) {
+    try {
+      // More robust JSON extraction
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON found in response");
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      return {
+        authenticity: parsed.authenticity || "Verified",
+        policyCoverage: parsed.policyCoverage || "Eligible",
+        riskScore: typeof parsed.riskScore === 'number' ? parsed.riskScore : (parseInt(parsed.riskScore) || 0),
+        analysis: parsed.analysis || "Analysis complete."
+      };
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError, "Original text:", text);
+      throw new Error("Failed to parse AI response");
+    }
+  } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
+    
+    // Check for specific error types if possible
+    const errorMessage = error.message || "Error connecting to Gemini API.";
+    
     return {
       authenticity: "Error",
       policyCoverage: "Error",
       riskScore: 99,
-      analysis: "Failed to perform AI analysis. Error connecting to Gemini API."
+      analysis: `Failed to perform AI analysis. ${errorMessage}`
     };
   }
 }

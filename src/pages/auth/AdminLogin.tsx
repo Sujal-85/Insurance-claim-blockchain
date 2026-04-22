@@ -56,9 +56,7 @@ export default function AdminLogin() {
         
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
-              <Shield className="h-6 w-6 text-white" />
-            </div>
+            <img src="/logo.png" alt="RealtyCheck Logo" className="w-12 h-12 object-contain brightness-0 invert" />
             <div>
               <span className="font-display font-bold text-2xl text-white block">RealtyCheck</span>
               <span className="text-xs text-sidebar-primary">Admin Portal</span>
@@ -111,9 +109,7 @@ export default function AdminLogin() {
               <>
                 <div className="mb-8">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-security/20 flex items-center justify-center">
-                      <Shield className="h-6 w-6 text-security" />
-                    </div>
+                    <img src="/logo.png" alt="RealtyCheck Logo" className="w-12 h-12 object-contain" />
                     <div>
                       <h1 className="text-3xl font-display font-bold">Admin Login</h1>
                       <p className="text-sm text-muted-foreground">Secure administrative access</p>

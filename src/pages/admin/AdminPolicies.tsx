@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 
 export default function AdminPolicies() {
   const [policies, setPolicies] = useState<any[]>([]);
@@ -126,7 +127,7 @@ export default function AdminPolicies() {
                 </select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="coverage">Coverage Amount ($)</Label>
+                <Label htmlFor="coverage">Coverage Amount (₹)</Label>
                 <Input 
                   id="coverage" 
                   type="number" 
@@ -136,7 +137,7 @@ export default function AdminPolicies() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="premium">Monthly Premium ($)</Label>
+                <Label htmlFor="premium">Monthly Premium (₹)</Label>
                 <Input 
                   id="premium" 
                   type="number" 
@@ -195,7 +196,7 @@ export default function AdminPolicies() {
         <GlassCard className="bg-info/5 border-info/20">
           <TrendingUp className="h-6 w-6 text-info mb-2" />
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Revenue</h4>
-          <p className="text-2xl font-bold">$142k</p>
+          <p className="text-2xl font-bold">{formatCurrency(142000)}</p>
           <div className="flex items-center gap-1 text-success text-[10px] font-bold mt-1">
             <TrendingUp className="h-3 w-3" /> +8.4%
           </div>
@@ -251,11 +252,11 @@ export default function AdminPolicies() {
                     <div className="flex items-center gap-8">
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Premium</p>
-                        <p className="font-bold">${policy.premium}/mo</p>
+                        <p className="font-bold">{formatCurrency(policy.premium)}/mo</p>
                       </div>
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Coverage</p>
-                        <p className="font-bold">${policy.coverageAmount.toLocaleString()}</p>
+                        <p className="font-bold">{formatCurrency(policy.coverageAmount)}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>

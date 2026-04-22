@@ -4,7 +4,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
-import { Search, Filter, Eye, CheckCircle, XCircle, AlertTriangle, X, Clock, User, FileText, DollarSign, Shield, Calendar } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle, AlertTriangle, X, Clock, User, FileText, IndianRupee, Shield, Calendar } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -43,7 +44,7 @@ export default function AdminClaims() {
           user: claim.user?.name || "Unknown User",
           walletAddress: claim.user?.walletAddress || "N/A",
           type: claim.userPolicy?.policy?.policyName || "N/A",
-          amount: `$${claim.amount?.toLocaleString() || '0'}`,
+          amount: formatCurrency(claim.amount || 0),
           risk: Math.round(claim.aiRiskScore || 10),
           status: displayStatus,
           rawStatus: rawStatus, // Keep original for debugging
@@ -239,7 +240,7 @@ export default function AdminClaims() {
               {/* Financial Info */}
               <div className="space-y-3">
                 <h4 className="font-semibold flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
+                  <IndianRupee className="h-4 w-4" />
                   Financial Details
                 </h4>
                 <div className="grid grid-cols-2 gap-4">

@@ -11,12 +11,13 @@ import {
   Clock,
   AlertTriangle,
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ totalClaims: 0, pendingReview: 0, approvedToday: 0, totalPayouts: 0 });
@@ -45,7 +46,8 @@ export default function AdminDashboard() {
         id: claim.id,
         user: claim.user?.name || claim.user?.email || "Unknown User",
         userAddress: claim.user?.walletAddress || "N/A",
-        amount: `$${(claim.amount || 0).toLocaleString()}`,
+        policy: claim.userPolicy?.policy?.policyName || "General",
+        amount: formatCurrency(claim.amount || 0),
         risk: Math.round(claim.aiRiskScore || 10),
         status: claim.status === 'AI_VERIFIED' ? 'processing' : claim.status.toLowerCase(),
         date: new Date(claim.createdAt).toLocaleDateString()
@@ -69,7 +71,7 @@ export default function AdminDashboard() {
         <StatsCard title="Total Claims" value={stats.totalClaims.toString()} icon={FileStack} change={{ value: 12, trend: "up" }} />
         <StatsCard title="Pending Review" value={stats.pendingReview.toString()} icon={Clock} iconColor="bg-warning/10 text-warning" />
         <StatsCard title="Approved Contracts" value={stats.approvedToday.toString()} icon={CheckCircle} iconColor="bg-success/10 text-success" />
-        <StatsCard title="Total Payouts" value={`$${stats.totalPayouts.toLocaleString()}`} icon={DollarSign} change={{ value: 8, trend: "up" }} />
+        <StatsCard title="Total Payouts" value={formatCurrency(stats.totalPayouts)} icon={IndianRupee} change={{ value: 8, trend: "up" }} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -96,9 +98,9 @@ export default function AdminDashboard() {
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
                       {claim.user.charAt(0)}
                     </div>
-                    <div>
+                    <div className="flex flex-col">
                       <p className="font-medium">Claim #{claim.id}</p>
-                      <p className="text-sm text-muted-foreground">{claim.user}</p>
+                      <p className="text-xs text-muted-foreground">{claim.user} • {claim.policy}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

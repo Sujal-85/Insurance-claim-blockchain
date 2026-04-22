@@ -15,10 +15,11 @@ import {
   Wallet,
   Edit,
   Clock,
-  DollarSign,
+  IndianRupee,
   ArrowUpRight,
   Loader2
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +73,7 @@ export default function UserProfile() {
     setWithdrawLoading(true);
     try {
       const { signMessage } = await import("@/lib/ethereum");
-      const message = `I authorize the withdrawal of $${amount} from my Secure Chain account at ${new Date().toISOString()}`;
+      const message = `I authorize the withdrawal of ${formatCurrency(amount)} from my Secure Chain account at ${new Date().toISOString()}`;
       const signature = await signMessage(message);
 
       const response = await api.post('/auth/withdraw', { 
@@ -80,7 +81,7 @@ export default function UserProfile() {
         signature,
         message
       });
-      toast.success(`Successfully withdrew $${amount}`);
+      toast.success(`Successfully withdrew ${formatCurrency(amount)}`);
       setProfile({ ...profile, balance: response.data.newBalance });
       setWithdrawAmount("");
       setShowWithdrawForm(false);
@@ -224,11 +225,11 @@ export default function UserProfile() {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold">Your Balance</h3>
               <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-success" />
+                <IndianRupee className="h-5 w-5 text-success" />
               </div>
             </div>
             <div className="text-center mb-6">
-              <p className="text-4xl font-bold text-success">${profile.balance?.toLocaleString() || '0'}</p>
+              <p className="text-4xl font-bold text-success">{formatCurrency(profile.balance || 0)}</p>
               <p className="text-sm text-muted-foreground mt-1">
                 {(profile.balance || 0) > 0 ? "Available for withdrawal" : 
                  (profile.totalClaims || 0) === 0 ? "Submit a claim to start earning" : "No funds available for withdrawal"}

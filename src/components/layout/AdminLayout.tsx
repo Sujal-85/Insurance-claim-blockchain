@@ -152,9 +152,7 @@ export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
               </DropdownMenu>
               
               <div className="flex items-center gap-3 pl-4 border-l border-border">
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-white" />
-                </div>
+                <img src="/logo.png" alt="Admin" className="w-10 h-10 rounded-full object-contain bg-primary/10 p-1" />
                 <div>
                   <p className="text-sm font-medium">Admin User</p>
                   <p className="text-xs text-muted-foreground">Super Admin</p>

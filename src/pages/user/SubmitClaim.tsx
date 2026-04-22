@@ -12,6 +12,7 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { ethers } from "ethers";
 import SecureChainABI from "@/lib/SecureChain.json";
+import { formatCurrency } from "@/lib/utils";
 import {
   Upload,
   FileText,
@@ -20,7 +21,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Calendar,
-  DollarSign,
+  IndianRupee,
   AlertCircle,
   Image,
   File,
@@ -150,7 +151,7 @@ export default function SubmitClaim() {
     if (formData.amount > policy.coverageAmount) {
       return { 
         valid: false, 
-        message: `Claim amount ($${formData.amount.toLocaleString()}) exceeds policy coverage ($${policy.coverageAmount.toLocaleString()})` 
+        message: `Claim amount (${formatCurrency(formData.amount)}) exceeds policy coverage (${formatCurrency(policy.coverageAmount)})` 
       };
     }
     
@@ -314,7 +315,7 @@ export default function SubmitClaim() {
                         <p className="text-xs text-muted-foreground mb-2">{up.policy.category} • ID: {up.policy.id}</p>
                         <div className="flex justify-between text-xs font-medium">
                           <span>Max Coverage</span>
-                          <span>${up.policy.coverageAmount.toLocaleString()}</span>
+                          <span>{formatCurrency(up.policy.coverageAmount)}</span>
                         </div>
                       </div>
                     ))
@@ -384,12 +385,12 @@ export default function SubmitClaim() {
                       <Label>Claim Amount</Label>
                       {getSelectedPolicy() && (
                         <span className="text-xs text-muted-foreground">
-                          Max: ${getSelectedPolicy()?.coverageAmount?.toLocaleString()}
+                          Max: {formatCurrency(getSelectedPolicy()?.coverageAmount || 0)}
                         </span>
                       )}
                     </div>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input 
                         type="number" 
                         placeholder="Enter amount" 
@@ -401,7 +402,7 @@ export default function SubmitClaim() {
                     {formData.amount > (getSelectedPolicy()?.coverageAmount || 0) && formData.amount > 0 && (
                       <p className="text-xs text-destructive flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
-                        Amount exceeds policy coverage of ${getSelectedPolicy()?.coverageAmount?.toLocaleString()}
+                        Amount exceeds policy coverage of {formatCurrency(getSelectedPolicy()?.coverageAmount || 0)}
                       </p>
                     )}
                   </div>
@@ -529,7 +530,7 @@ export default function SubmitClaim() {
                     </div>
                     <div className="p-4 rounded-xl bg-muted/30">
                       <p className="text-sm text-muted-foreground mb-1">Claim Amount</p>
-                      <p className="font-medium text-xl">${formData.amount.toLocaleString()}</p>
+                      <p className="font-medium text-xl">{formatCurrency(formData.amount)}</p>
                     </div>
                   </div>
 

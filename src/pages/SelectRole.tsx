@@ -26,9 +26,7 @@ export default function SelectRole() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-6">
-            <Shield className="h-8 w-8 text-white" />
-          </div>
+          <img src="/logo.png" alt="RealtyCheck Logo" className="w-16 h-16 object-contain mx-auto mb-6" />
           <h1 className="text-4xl font-display font-bold mb-4">
             Welcome to RealtyCheck
           </h1>
